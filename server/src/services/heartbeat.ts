@@ -2293,6 +2293,23 @@ export function heartbeatService(db: Db) {
     if (executionWorkspace.projectId && !readNonEmptyString(context.projectId)) {
       context.projectId = executionWorkspace.projectId;
     }
+
+    // Inject knowledge manifest if collections exist
+    try {
+      const { knowledgeService: knowledgeSvc } = await import("./knowledge.js");
+      const kSvc = knowledgeSvc(db);
+      const projectIdForKnowledge = readNonEmptyString(context.projectId) ?? null;
+      const knowledgeManifest = await kSvc.buildManifestForAgent(agent.companyId, projectIdForKnowledge);
+      if (
+        knowledgeManifest.companyCollections.length > 0 ||
+        knowledgeManifest.projectCollections.length > 0
+      ) {
+        context.paperclipKnowledge = knowledgeManifest;
+      }
+    } catch {
+      // Knowledge service failure should not block heartbeat execution
+    }
+
     const runtimeSessionFallback = taskKey || resetTaskSession ? null : runtime.sessionId;
     let previousSessionDisplayId = truncateDisplayId(
       explicitResumeSessionDisplayId ??

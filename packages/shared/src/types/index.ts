@@ -140,6 +140,21 @@ export type {
 } from "./access.js";
 export type { QuotaWindow, ProviderQuotaResult } from "./quota.js";
 export type {
+  KnowledgeCollectionSourceType,
+  KnowledgeCollectionStatus,
+  KnowledgeEntryKind,
+  KnowledgeCollection,
+  KnowledgeEntry,
+  KnowledgeCollectionDetail,
+  KnowledgeCollectionCreateRequest,
+  KnowledgeCollectionUpdateRequest,
+  KnowledgeEntryUpdateRequest,
+  KnowledgeRescanResult,
+  KnowledgeEntryManifest,
+  KnowledgeCollectionManifest,
+  KnowledgeManifest,
+} from "./knowledge.js";
+export type {
   CompanyPortabilityInclude,
   CompanyPortabilityEnvInput,
   CompanyPortabilityFileEntry,

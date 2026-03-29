@@ -360,6 +360,24 @@ npx paperclipai issue update <issue-id> --assignee-agent-id <other-agent-id> --s
 
 If you use direct `curl` during these tests, include `X-Paperclip-Run-Id` on all mutating issue requests whenever running inside a heartbeat.
 
+## Knowledge Base
+
+Your context may include a `paperclipKnowledge` manifest listing available reference documents for your company and project. Check this manifest before starting work to identify relevant knowledge:
+
+- **Design systems** → check before any UI work
+- **PRDs/briefs** → check before any feature work
+- **Database schemas** → check before any data model work
+- **SOPs** → check before any process-related work
+
+To retrieve a full document:
+
+```
+GET {PAPERCLIP_API_BASE}/api/knowledge/entries/{entryId}/content
+Authorization: Bearer {PAPERCLIP_API_KEY}
+```
+
+The manifest only contains summaries — fetch the full content when you need the details.
+
 ## Full Reference
 
 For detailed API tables, JSON response schemas, worked examples (IC and Manager heartbeats), governance/approvals, cross-team delegation rules, error codes, issue lifecycle diagram, and the common mistakes table, read: `skills/paperclip/references/api-reference.md`

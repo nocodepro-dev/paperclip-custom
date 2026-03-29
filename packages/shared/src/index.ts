@@ -312,6 +312,19 @@ export type {
   PluginWebhookDeliveryRecord,
   QuotaWindow,
   ProviderQuotaResult,
+  KnowledgeCollectionSourceType,
+  KnowledgeCollectionStatus,
+  KnowledgeEntryKind,
+  KnowledgeCollection,
+  KnowledgeEntry,
+  KnowledgeCollectionDetail,
+  KnowledgeCollectionCreateRequest,
+  KnowledgeCollectionUpdateRequest,
+  KnowledgeEntryUpdateRequest,
+  KnowledgeRescanResult,
+  KnowledgeEntryManifest,
+  KnowledgeCollectionManifest,
+  KnowledgeManifest,
 } from "./types/index.js";
 
 export {
@@ -534,6 +547,20 @@ export {
   type PluginStateScopeKey,
   type SetPluginState,
   type ListPluginState,
+} from "./validators/index.js";
+
+export {
+  knowledgeCollectionSourceTypeSchema,
+  knowledgeCollectionStatusSchema,
+  knowledgeEntryKindSchema,
+  knowledgeCollectionSchema,
+  knowledgeEntrySchema,
+  createKnowledgeCollectionSchema,
+  updateKnowledgeCollectionSchema,
+  updateKnowledgeEntrySchema,
+  type CreateKnowledgeCollection,
+  type UpdateKnowledgeCollection,
+  type UpdateKnowledgeEntry,
 } from "./validators/index.js";
 
 export { API_PREFIX, API } from "./api.js";

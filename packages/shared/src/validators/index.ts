@@ -279,3 +279,17 @@ export {
   type SetPluginState,
   type ListPluginState,
 } from "./plugin.js";
+
+export {
+  knowledgeCollectionSourceTypeSchema,
+  knowledgeCollectionStatusSchema,
+  knowledgeEntryKindSchema,
+  knowledgeCollectionSchema,
+  knowledgeEntrySchema,
+  createKnowledgeCollectionSchema,
+  updateKnowledgeCollectionSchema,
+  updateKnowledgeEntrySchema,
+  type CreateKnowledgeCollection,
+  type UpdateKnowledgeCollection,
+  type UpdateKnowledgeEntry,
+} from "./knowledge.js";
