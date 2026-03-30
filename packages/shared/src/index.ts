@@ -67,12 +67,6 @@ export {
   PLUGIN_WEBHOOK_DELIVERY_STATUSES,
   PLUGIN_EVENT_TYPES,
   PLUGIN_BRIDGE_ERROR_CODES,
-  SOP_STATUSES,
-  SOP_SOURCE_TYPES,
-  SOP_ASSET_KINDS,
-  PIPELINE_TEMPLATE_STATUSES,
-  PIPELINE_RUN_STATUSES,
-  PIPELINE_STAGE_RUN_STATUSES,
   type CompanyStatus,
   type DeploymentMode,
   type DeploymentExposure,
@@ -138,12 +132,6 @@ export {
   type PluginWebhookDeliveryStatus,
   type PluginEventType,
   type PluginBridgeErrorCode,
-  type SopStatus,
-  type SopSourceType,
-  type SopAssetKind,
-  type PipelineTemplateStatus,
-  type PipelineRunStatus,
-  type PipelineStageRunStatus,
 } from "./constants.js";
 
 export type {
@@ -324,40 +312,6 @@ export type {
   PluginWebhookDeliveryRecord,
   QuotaWindow,
   ProviderQuotaResult,
-  KnowledgeCollectionSourceType,
-  KnowledgeCollectionStatus,
-  KnowledgeEntryKind,
-  KnowledgeCollection,
-  KnowledgeEntry,
-  KnowledgeCollectionDetail,
-  KnowledgeCollectionCreateRequest,
-  KnowledgeCollectionUpdateRequest,
-  KnowledgeEntryUpdateRequest,
-  KnowledgeRescanResult,
-  KnowledgeEntryManifest,
-  KnowledgeCollectionManifest,
-  KnowledgeManifest,
-  CompanySop,
-  SopAsset,
-  CompanySopDetail,
-  SOPStepAnalysis,
-  SOPConversionResult,
-  SOPConversionMode,
-  PipelineTemplate,
-  PipelineStage,
-  PipelineRun,
-  PipelineStageRun,
-  PipelineAgentSummary,
-  PipelineIssueSummary,
-  PipelineStageRunDetail,
-  PipelineTemplateDetail,
-  PipelineRunDetail,
-  PipelineExecutionIssueOrigin,
-  ToolType,
-  ToolStatus,
-  ToolRegistryEntry,
-  SkillToolRequirement,
-  SkillRequirementsReport,
 } from "./types/index.js";
 
 export {
@@ -582,54 +536,8 @@ export {
   type ListPluginState,
 } from "./validators/index.js";
 
-export {
-  knowledgeCollectionSourceTypeSchema,
-  knowledgeCollectionStatusSchema,
-  knowledgeEntryKindSchema,
-  knowledgeCollectionSchema,
-  knowledgeEntrySchema,
-  createKnowledgeCollectionSchema,
-  updateKnowledgeCollectionSchema,
-  updateKnowledgeEntrySchema,
-  type CreateKnowledgeCollection,
-  type UpdateKnowledgeCollection,
-  type UpdateKnowledgeEntry,
-} from "./validators/index.js";
-
-export {
-  createSopSchema,
-  updateSopSchema,
-  sopAssetKindSchema,
-  startSopConversionSchema,
-  rejectSopConversionSchema,
-  type CreateSop,
-  type UpdateSop,
-  type StartSopConversion,
-  type RejectSopConversion,
-} from "./validators/index.js";
-
-export {
-  createPipelineTemplateSchema,
-  updatePipelineTemplateSchema,
-  createPipelineStageSchema,
-  updatePipelineStageSchema,
-  launchPipelineRunSchema,
-  reorderPipelineStagesSchema,
-  type CreatePipelineTemplate,
-  type UpdatePipelineTemplate,
-  type CreatePipelineStage,
-  type UpdatePipelineStage,
-  type LaunchPipelineRun,
-  type ReorderPipelineStages,
-} from "./validators/index.js";
-
-export {
-  toolTypeSchema,
-  toolStatusSchema,
-  toolRegistryEntrySchema,
-  skillToolRequirementSchema,
-  skillRequirementsReportSchema,
-} from "./validators/index.js";
+// Local extensions — custom validators, types, and constants
+export * from "./local-extensions.js";
 
 export { API_PREFIX, API } from "./api.js";
 export { normalizeAgentUrlKey, deriveAgentUrlKey, isUuidLike } from "./agent-url-key.js";
