@@ -340,6 +340,9 @@ export type {
   CompanySop,
   SopAsset,
   CompanySopDetail,
+  SOPStepAnalysis,
+  SOPConversionResult,
+  SOPConversionMode,
   PipelineTemplate,
   PipelineStage,
   PipelineRun,
@@ -592,8 +595,12 @@ export {
   createSopSchema,
   updateSopSchema,
   sopAssetKindSchema,
+  startSopConversionSchema,
+  rejectSopConversionSchema,
   type CreateSop,
   type UpdateSop,
+  type StartSopConversion,
+  type RejectSopConversion,
 } from "./validators/index.js";
 
 export {

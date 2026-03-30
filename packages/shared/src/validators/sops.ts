@@ -23,3 +23,16 @@ export const updateSopSchema = z.object({
 export type UpdateSop = z.infer<typeof updateSopSchema>;
 
 export const sopAssetKindSchema = z.enum(SOP_ASSET_KINDS);
+
+// ---- Phase 2: Conversion validators ----
+
+export const startSopConversionSchema = z.object({
+  mode: z.enum(["auto", "review"]).default("review"),
+  agentId: z.string().uuid().optional(),
+});
+export type StartSopConversion = z.infer<typeof startSopConversionSchema>;
+
+export const rejectSopConversionSchema = z.object({
+  feedback: z.string().min(1),
+});
+export type RejectSopConversion = z.infer<typeof rejectSopConversionSchema>;

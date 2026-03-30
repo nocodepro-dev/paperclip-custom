@@ -211,6 +211,9 @@ export type {
   CompanySop,
   SopAsset,
   CompanySopDetail,
+  SOPStepAnalysis,
+  SOPConversionResult,
+  SOPConversionMode,
 } from "./sop.js";
 export type {
   PipelineTemplate,

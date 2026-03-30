@@ -33,3 +33,27 @@ export interface SopAsset {
 export interface CompanySopDetail extends CompanySop {
   assets: SopAsset[];
 }
+
+// ---- Phase 2: Conversion types ----
+
+export interface SOPStepAnalysis {
+  stepNumber: number;
+  humanAction: string;
+  toolRequired: string | null;
+  agentAction: string;
+  automatable: boolean;
+  requiresApproval: boolean;
+  toolAvailable: boolean;
+  fallback: string | null;
+}
+
+export interface SOPConversionResult {
+  sopId: string;
+  status: "analyzing" | "draft_ready" | "approved" | "rejected";
+  stepAnalysis: SOPStepAnalysis[];
+  draftSkillMarkdown: string | null;
+  automationScore: number;
+  generatedSkillId: string | null;
+}
+
+export type SOPConversionMode = "auto" | "review";

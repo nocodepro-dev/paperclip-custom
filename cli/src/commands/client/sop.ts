@@ -58,6 +58,35 @@ interface SopRemoveOptions extends BaseClientOptions {
   yes?: boolean;
 }
 
+interface SopConvertOptions extends BaseClientOptions {
+  auto?: boolean;
+  review?: boolean;
+}
+
+interface SopConvertRejectOptions extends BaseClientOptions {
+  feedback: string;
+}
+
+interface SOPStepAnalysis {
+  stepNumber: number;
+  humanAction: string;
+  toolRequired: string | null;
+  agentAction: string;
+  automatable: boolean;
+  requiresApproval: boolean;
+  toolAvailable: boolean;
+  fallback: string | null;
+}
+
+interface SOPConversionResult {
+  sopId: string;
+  status: string;
+  stepAnalysis: SOPStepAnalysis[];
+  draftSkillMarkdown: string | null;
+  automationScore: number;
+  generatedSkillId: string | null;
+}
+
 export function registerSopCommands(program: Command): void {
   const sop = program.command("sop").description("SOP management commands");
 
@@ -260,6 +289,123 @@ export function registerSopCommands(program: Command): void {
           }
           await ctx.api.delete(`/api/sops/${sopId}`);
           console.log(pc.green("✓ SOP removed."));
+        } catch (err) {
+          handleCommandError(err);
+        }
+      }),
+  );
+
+  // sop convert <sop-id>
+  addCommonClientOptions(
+    sop
+      .command("convert")
+      .description("Convert an SOP into an agent-executable SKILL.md")
+      .argument("<sopId>", "SOP ID")
+      .option("--auto", "Auto-approve the generated skill (skip review)")
+      .option("--review", "Generate draft for review (default)")
+      .action(async (sopId: string, opts: SopConvertOptions) => {
+        try {
+          const ctx = resolveCommandContext(opts);
+          const mode = opts.auto ? "auto" : "review";
+
+          const result = await ctx.api.post<SOPConversionResult>(
+            `/api/sops/${sopId}/convert`,
+            { mode },
+          );
+
+          if (!result) {
+            console.error(pc.red("Conversion failed."));
+            process.exit(1);
+          }
+
+          if (ctx.json) {
+            printOutput(result, { json: true });
+            return;
+          }
+
+          console.log(pc.green(`✓ Conversion started (mode: ${mode})`));
+          console.log(`  Automation score: ${result.automationScore}%`);
+          console.log(`  Steps analyzed: ${result.stepAnalysis.length}`);
+          console.log();
+
+          // Step analysis summary
+          for (const step of result.stepAnalysis) {
+            const icon = step.automatable
+              ? step.requiresApproval ? pc.yellow("⚠") : pc.green("✓")
+              : pc.red("✗");
+            const tool = step.toolRequired ? pc.dim(` [${step.toolRequired}]`) : "";
+            console.log(`  ${icon} Step ${step.stepNumber}: ${step.humanAction.slice(0, 70)}${tool}`);
+          }
+
+          console.log();
+          if (mode === "auto" && result.generatedSkillId) {
+            console.log(pc.green(`  Skill created: ${result.generatedSkillId}`));
+            console.log(pc.dim(`  Tip: Use /skill-creator to iteratively test and improve this skill.`));
+          } else {
+            console.log(pc.yellow(`  Draft ready for review.`));
+            console.log(pc.dim(`  Approve: pnpm paperclipai sop convert-approve ${sopId}`));
+            console.log(pc.dim(`  Reject:  pnpm paperclipai sop convert-reject ${sopId} --feedback "..."`));
+          }
+        } catch (err) {
+          handleCommandError(err);
+        }
+      }),
+  );
+
+  // sop convert-approve <sop-id>
+  addCommonClientOptions(
+    sop
+      .command("convert-approve")
+      .description("Approve a draft SOP conversion and create the skill")
+      .argument("<sopId>", "SOP ID")
+      .action(async (sopId: string, opts: BaseClientOptions) => {
+        try {
+          const ctx = resolveCommandContext(opts);
+          const result = await ctx.api.post<{ skillId: string }>(
+            `/api/sops/${sopId}/conversion/approve`,
+            {},
+          );
+
+          if (!result) {
+            console.error(pc.red("Approval failed."));
+            process.exit(1);
+          }
+
+          if (ctx.json) {
+            printOutput(result, { json: true });
+            return;
+          }
+
+          console.log(pc.green(`✓ Conversion approved. Skill created.`));
+          console.log(`  Skill ID: ${result.skillId}`);
+          console.log(pc.dim(`  Tip: Use /skill-creator to iteratively test and improve this skill.`));
+        } catch (err) {
+          handleCommandError(err);
+        }
+      }),
+  );
+
+  // sop convert-reject <sop-id>
+  addCommonClientOptions(
+    sop
+      .command("convert-reject")
+      .description("Reject a draft SOP conversion with feedback")
+      .argument("<sopId>", "SOP ID")
+      .requiredOption("--feedback <text>", "Reason for rejection")
+      .action(async (sopId: string, opts: SopConvertRejectOptions) => {
+        try {
+          const ctx = resolveCommandContext(opts);
+          await ctx.api.post(`/api/sops/${sopId}/conversion/reject`, {
+            feedback: opts.feedback,
+          });
+
+          if (ctx.json) {
+            printOutput({ ok: true }, { json: true });
+            return;
+          }
+
+          console.log(pc.green(`✓ Conversion rejected. SOP reverted to active.`));
+          console.log(pc.dim(`  Feedback: ${opts.feedback}`));
         } catch (err) {
           handleCommandError(err);
         }

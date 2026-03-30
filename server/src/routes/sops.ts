@@ -2,9 +2,9 @@ import { Router } from "express";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import type { Db } from "@paperclipai/db";
-import { createSopSchema, updateSopSchema } from "@paperclipai/shared";
+import { createSopSchema, updateSopSchema, startSopConversionSchema, rejectSopConversionSchema } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
-import { sopService, logActivity } from "../services/index.js";
+import { sopService, sopConverterService, logActivity } from "../services/index.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 
 export function sopRoutes(db: Db) {
@@ -162,6 +162,121 @@ export function sopRoutes(db: Db) {
       res.status(404).json({ error: "File no longer exists on disk" });
     }
   });
+
+  // ---- SOP Conversion ----
+
+  const converter = sopConverterService(db);
+
+  router.post(
+    "/sops/:id/convert",
+    validate(startSopConversionSchema),
+    async (req, res) => {
+      const id = req.params.id as string;
+      const sop = await svc.getById(id);
+      if (!sop) {
+        res.status(404).json({ error: "SOP not found" });
+        return;
+      }
+      assertCompanyAccess(req, sop.companyId);
+
+      try {
+        const result = await converter.startConversion(sop.id, sop.companyId, req.body);
+        const actor = getActorInfo(req);
+        await logActivity(db, {
+          companyId: sop.companyId,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
+          agentId: actor.agentId,
+          action: "sop.conversion_started",
+          entityType: "sop",
+          entityId: sop.id,
+          details: { mode: req.body.mode, automationScore: result.automationScore },
+        });
+        res.json(result);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Conversion failed";
+        res.status(422).json({ error: message });
+      }
+    },
+  );
+
+  router.get("/sops/:id/conversion", async (req, res) => {
+    const id = req.params.id as string;
+    const sop = await svc.getById(id);
+    if (!sop) {
+      res.status(404).json({ error: "SOP not found" });
+      return;
+    }
+    assertCompanyAccess(req, sop.companyId);
+    const result = await converter.getConversionStatus(id);
+    if (!result) {
+      res.status(404).json({ error: "No conversion found for this SOP" });
+      return;
+    }
+    res.json(result);
+  });
+
+  router.post("/sops/:id/conversion/approve", async (req, res) => {
+    const id = req.params.id as string;
+    const sop = await svc.getById(id);
+    if (!sop) {
+      res.status(404).json({ error: "SOP not found" });
+      return;
+    }
+    assertCompanyAccess(req, sop.companyId);
+
+    try {
+      const result = await converter.approveConversion(sop.id, sop.companyId);
+      const actor = getActorInfo(req);
+      await logActivity(db, {
+        companyId: sop.companyId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        agentId: actor.agentId,
+        action: "sop.conversion_approved",
+        entityType: "sop",
+        entityId: sop.id,
+        details: { skillId: result.skillId },
+      });
+      res.json(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Approval failed";
+      res.status(422).json({ error: message });
+    }
+  });
+
+  router.post(
+    "/sops/:id/conversion/reject",
+    validate(rejectSopConversionSchema),
+    async (req, res) => {
+      const id = req.params.id as string;
+      const sop = await svc.getById(id);
+      if (!sop) {
+        res.status(404).json({ error: "SOP not found" });
+        return;
+      }
+      assertCompanyAccess(req, sop.companyId);
+
+      try {
+        await converter.rejectConversion(sop.id, req.body.feedback);
+        const actor = getActorInfo(req);
+        await logActivity(db, {
+          companyId: sop.companyId,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
+          agentId: actor.agentId,
+          action: "sop.conversion_rejected",
+          entityType: "sop",
+          entityId: sop.id,
+          details: { feedback: req.body.feedback },
+        });
+        res.json({ ok: true });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Rejection failed";
+        res.status(422).json({ error: message });
+      }
+    },
+  );
 
   return router;
 }

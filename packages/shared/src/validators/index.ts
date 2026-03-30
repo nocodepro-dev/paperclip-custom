@@ -298,8 +298,12 @@ export {
   createSopSchema,
   updateSopSchema,
   sopAssetKindSchema,
+  startSopConversionSchema,
+  rejectSopConversionSchema,
   type CreateSop,
   type UpdateSop,
+  type StartSopConversion,
+  type RejectSopConversion,
 } from "./sops.js";
 
 export {
