@@ -28,6 +28,7 @@ import {
   logActivity,
   projectService,
   routineService,
+  pipelineService,
   workProductService,
 } from "../services/index.js";
 import { logger } from "../middleware/logger.js";
@@ -52,6 +53,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
   const workProductsSvc = workProductService(db);
   const documentsSvc = documentService(db);
   const routinesSvc = routineService(db);
+  const pipelineSvc = pipelineService(db);
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1 },
@@ -956,6 +958,7 @@ export function issueRoutes(db: Db, storage: StorageService) {
       return;
     }
     await routinesSvc.syncRunStatusForIssue(issue.id);
+    await pipelineSvc.syncStageRunForIssue(issue.id);
 
     if (actor.runId) {
       await heartbeat.reportRunActivity(actor.runId).catch((err) =>

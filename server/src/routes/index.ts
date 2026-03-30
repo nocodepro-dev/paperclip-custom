@@ -17,3 +17,4 @@ export { accessRoutes } from "./access.js";
 export { instanceSettingsRoutes } from "./instance-settings.js";
 export { knowledgeRoutes } from "./knowledge.js";
 export { sopRoutes } from "./sops.js";
+export { pipelineRoutes } from "./pipelines.js";

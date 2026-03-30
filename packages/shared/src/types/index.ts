@@ -212,3 +212,15 @@ export type {
   SopAsset,
   CompanySopDetail,
 } from "./sop.js";
+export type {
+  PipelineTemplate,
+  PipelineStage,
+  PipelineRun,
+  PipelineStageRun,
+  PipelineAgentSummary,
+  PipelineIssueSummary,
+  PipelineStageRunDetail,
+  PipelineTemplateDetail,
+  PipelineRunDetail,
+  PipelineExecutionIssueOrigin,
+} from "./pipeline.js";

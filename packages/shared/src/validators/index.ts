@@ -301,3 +301,18 @@ export {
   type CreateSop,
   type UpdateSop,
 } from "./sops.js";
+
+export {
+  createPipelineTemplateSchema,
+  updatePipelineTemplateSchema,
+  createPipelineStageSchema,
+  updatePipelineStageSchema,
+  launchPipelineRunSchema,
+  reorderPipelineStagesSchema,
+  type CreatePipelineTemplate,
+  type UpdatePipelineTemplate,
+  type CreatePipelineStage,
+  type UpdatePipelineStage,
+  type LaunchPipelineRun,
+  type ReorderPipelineStages,
+} from "./pipeline.js";

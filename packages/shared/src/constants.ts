@@ -122,8 +122,17 @@ export type IssueStatus = (typeof ISSUE_STATUSES)[number];
 export const ISSUE_PRIORITIES = ["critical", "high", "medium", "low"] as const;
 export type IssuePriority = (typeof ISSUE_PRIORITIES)[number];
 
-export const ISSUE_ORIGIN_KINDS = ["manual", "routine_execution"] as const;
+export const ISSUE_ORIGIN_KINDS = ["manual", "routine_execution", "pipeline_stage"] as const;
 export type IssueOriginKind = (typeof ISSUE_ORIGIN_KINDS)[number];
+
+export const PIPELINE_TEMPLATE_STATUSES = ["active", "archived"] as const;
+export type PipelineTemplateStatus = (typeof PIPELINE_TEMPLATE_STATUSES)[number];
+
+export const PIPELINE_RUN_STATUSES = ["pending", "running", "paused", "completed", "failed", "cancelled"] as const;
+export type PipelineRunStatus = (typeof PIPELINE_RUN_STATUSES)[number];
+
+export const PIPELINE_STAGE_RUN_STATUSES = ["pending", "waiting_approval", "running", "completed", "failed", "skipped", "cancelled"] as const;
+export type PipelineStageRunStatus = (typeof PIPELINE_STAGE_RUN_STATUSES)[number];
 
 export const GOAL_LEVELS = ["company", "team", "agent", "task"] as const;
 export type GoalLevel = (typeof GOAL_LEVELS)[number];

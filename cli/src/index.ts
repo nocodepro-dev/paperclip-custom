@@ -21,6 +21,7 @@ import { registerWorktreeCommands } from "./commands/worktree.js";
 import { registerPluginCommands } from "./commands/client/plugin.js";
 import { registerKnowledgeCommands } from "./commands/client/knowledge.js";
 import { registerSopCommands } from "./commands/client/sop.js";
+import { registerPipelineCommands } from "./commands/client/pipeline.js";
 import { registerClientAuthCommands } from "./commands/client/auth.js";
 
 const program = new Command();
@@ -143,6 +144,7 @@ registerWorktreeCommands(program);
 registerPluginCommands(program);
 registerKnowledgeCommands(program);
 registerSopCommands(program);
+registerPipelineCommands(program);
 
 const auth = program.command("auth").description("Authentication and bootstrap utilities");
 

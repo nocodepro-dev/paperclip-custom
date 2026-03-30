@@ -41,6 +41,9 @@ vi.mock("../services/index.js", () => ({
   routineService: () => ({
     syncRunStatusForIssue: vi.fn(async () => undefined),
   }),
+  pipelineService: () => ({
+    syncStageRunForIssue: vi.fn(async () => undefined),
+  }),
   workProductService: () => ({}),
 }));
 
