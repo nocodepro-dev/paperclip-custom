@@ -21,6 +21,7 @@ import { goalRoutes } from "./routes/goals.js";
 import { knowledgeRoutes } from "./routes/knowledge.js";
 import { sopRoutes } from "./routes/sops.js";
 import { pipelineRoutes } from "./routes/pipelines.js";
+import { toolRoutes } from "./routes/tools.js";
 import { approvalRoutes } from "./routes/approvals.js";
 import { secretRoutes } from "./routes/secrets.js";
 import { costRoutes } from "./routes/costs.js";
@@ -161,6 +162,7 @@ export async function createApp(
   api.use(knowledgeRoutes(db));
   api.use(sopRoutes(db));
   api.use(pipelineRoutes(db));
+  api.use(toolRoutes(db));
   const hostServicesDisposers = new Map<string, () => void>();
   const workerManager = createPluginWorkerManager();
   const pluginRegistry = pluginRegistryService(db);

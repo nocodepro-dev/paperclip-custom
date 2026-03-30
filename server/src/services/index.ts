@@ -28,6 +28,7 @@ export { workspaceOperationService } from "./workspace-operations.js";
 export { workProductService } from "./work-products.js";
 export { sopService } from "./sops.js";
 export { sopConverterService } from "./sop-converter.js";
+export { toolRequirementsService } from "./tool-requirements.js";
 export { pipelineService } from "./pipelines.js";
 export { logActivity, type LogActivityInput } from "./activity-log.js";
 export { notifyHireApproved, type NotifyHireApprovedInput } from "./hire-hook.js";

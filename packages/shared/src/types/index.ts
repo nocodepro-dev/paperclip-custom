@@ -227,3 +227,10 @@ export type {
   PipelineRunDetail,
   PipelineExecutionIssueOrigin,
 } from "./pipeline.js";
+export type {
+  ToolType,
+  ToolStatus,
+  ToolRegistryEntry,
+  SkillToolRequirement,
+  SkillRequirementsReport,
+} from "./tool-registry.js";

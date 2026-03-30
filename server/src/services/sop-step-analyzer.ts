@@ -223,6 +223,23 @@ export function analyzeSopSteps(markdown: string): SOPStepAnalysis[] {
   return parsed.map((step, i) => analyzeStep(step, i + 1));
 }
 
+/**
+ * Enrich step analysis with tool availability data.
+ * Call after analyzeSopSteps() with a set of available bare tool IDs
+ * (e.g., from toolRequirementsService.getAvailableToolIds()).
+ */
+export function enrichToolAvailability(
+  steps: SOPStepAnalysis[],
+  availableToolIds: Set<string>,
+): SOPStepAnalysis[] {
+  return steps.map((step) => ({
+    ...step,
+    toolAvailable: step.toolRequired
+      ? availableToolIds.has(step.toolRequired)
+      : false,
+  }));
+}
+
 // ---- Agent action generation ----
 
 function generateAgentAction(

@@ -320,3 +320,11 @@ export {
   type LaunchPipelineRun,
   type ReorderPipelineStages,
 } from "./pipeline.js";
+
+export {
+  toolTypeSchema,
+  toolStatusSchema,
+  toolRegistryEntrySchema,
+  skillToolRequirementSchema,
+  skillRequirementsReportSchema,
+} from "./tools.js";

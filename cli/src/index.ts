@@ -22,6 +22,7 @@ import { registerPluginCommands } from "./commands/client/plugin.js";
 import { registerKnowledgeCommands } from "./commands/client/knowledge.js";
 import { registerSopCommands } from "./commands/client/sop.js";
 import { registerPipelineCommands } from "./commands/client/pipeline.js";
+import { registerSkillEquipCommands } from "./commands/client/skill-equip.js";
 import { registerClientAuthCommands } from "./commands/client/auth.js";
 
 const program = new Command();
@@ -145,6 +146,7 @@ registerPluginCommands(program);
 registerKnowledgeCommands(program);
 registerSopCommands(program);
 registerPipelineCommands(program);
+registerSkillEquipCommands(program);
 
 const auth = program.command("auth").description("Authentication and bootstrap utilities");
 

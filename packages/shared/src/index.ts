@@ -353,6 +353,11 @@ export type {
   PipelineTemplateDetail,
   PipelineRunDetail,
   PipelineExecutionIssueOrigin,
+  ToolType,
+  ToolStatus,
+  ToolRegistryEntry,
+  SkillToolRequirement,
+  SkillRequirementsReport,
 } from "./types/index.js";
 
 export {
@@ -616,6 +621,14 @@ export {
   type UpdatePipelineStage,
   type LaunchPipelineRun,
   type ReorderPipelineStages,
+} from "./validators/index.js";
+
+export {
+  toolTypeSchema,
+  toolStatusSchema,
+  toolRegistryEntrySchema,
+  skillToolRequirementSchema,
+  skillRequirementsReportSchema,
 } from "./validators/index.js";
 
 export { API_PREFIX, API } from "./api.js";

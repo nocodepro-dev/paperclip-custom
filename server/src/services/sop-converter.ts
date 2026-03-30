@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { companySops } from "@paperclipai/db";
 import type { SOPConversionResult, SOPStepAnalysis } from "@paperclipai/shared";
-import { analyzeSopSteps } from "./sop-step-analyzer.js";
+import { analyzeSopSteps, enrichToolAvailability } from "./sop-step-analyzer.js";
 import { sopService } from "./sops.js";
 import { companySkillService } from "./company-skills.js";
+import { toolRequirementsService } from "./tool-requirements.js";
+import { lookupTool } from "./tool-catalog.js";
 
 interface ConversionMetadata {
   mode: "auto" | "review";
@@ -61,7 +63,16 @@ function generateSkillMarkdown(
   if (requiredTools.length > 0) {
     lines.push("## Prerequisites", "");
     for (const tool of requiredTools) {
-      lines.push(`- **${tool}** — MCP server or CLI tool configured and accessible`);
+      const stepsWithTool = analysis.filter((s) => s.toolRequired === tool);
+      const isAvailable = stepsWithTool.some((s) => s.toolAvailable);
+      const catalogEntry = lookupTool(tool);
+      if (isAvailable) {
+        lines.push(`- **${catalogEntry?.name ?? tool}** — installed and accessible`);
+      } else if (catalogEntry?.installCommand) {
+        lines.push(`- **${catalogEntry.name}** — not installed (install: \`${catalogEntry.installCommand}\`)`);
+      } else {
+        lines.push(`- **${catalogEntry?.name ?? tool}** — MCP server or CLI tool needed`);
+      }
     }
     lines.push("");
   }
@@ -133,6 +144,7 @@ function generateEvalScaffolding(
 export function sopConverterService(db: Db) {
   const sops = sopService(db);
   const skills = companySkillService(db);
+  const toolReqs = toolRequirementsService(db);
 
   return {
     async startConversion(
@@ -150,8 +162,10 @@ export function sopConverterService(db: Db) {
       // Transition to converting
       await sops.update(sopId, { status: "converting" });
 
-      // Analyze steps
-      const stepAnalysis = analyzeSopSteps(sop.markdownBody);
+      // Analyze steps and enrich with tool availability
+      const rawSteps = analyzeSopSteps(sop.markdownBody);
+      const availableToolIds = await toolReqs.getAvailableToolIds();
+      const stepAnalysis = enrichToolAvailability(rawSteps, availableToolIds);
       const automatableCount = stepAnalysis.filter((s) => s.automatable).length;
       const automationScore = stepAnalysis.length > 0
         ? Math.round((automatableCount / stepAnalysis.length) * 100)
