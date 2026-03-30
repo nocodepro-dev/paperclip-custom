@@ -207,3 +207,8 @@ export type {
   PluginJobRunRecord,
   PluginWebhookDeliveryRecord,
 } from "./plugin.js";
+export type {
+  CompanySop,
+  SopAsset,
+  CompanySopDetail,
+} from "./sop.js";

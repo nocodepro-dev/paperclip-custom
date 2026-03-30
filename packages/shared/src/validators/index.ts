@@ -293,3 +293,11 @@ export {
   type UpdateKnowledgeCollection,
   type UpdateKnowledgeEntry,
 } from "./knowledge.js";
+
+export {
+  createSopSchema,
+  updateSopSchema,
+  sopAssetKindSchema,
+  type CreateSop,
+  type UpdateSop,
+} from "./sops.js";

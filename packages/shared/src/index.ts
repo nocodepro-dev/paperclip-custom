@@ -67,6 +67,9 @@ export {
   PLUGIN_WEBHOOK_DELIVERY_STATUSES,
   PLUGIN_EVENT_TYPES,
   PLUGIN_BRIDGE_ERROR_CODES,
+  SOP_STATUSES,
+  SOP_SOURCE_TYPES,
+  SOP_ASSET_KINDS,
   type CompanyStatus,
   type DeploymentMode,
   type DeploymentExposure,
@@ -132,6 +135,9 @@ export {
   type PluginWebhookDeliveryStatus,
   type PluginEventType,
   type PluginBridgeErrorCode,
+  type SopStatus,
+  type SopSourceType,
+  type SopAssetKind,
 } from "./constants.js";
 
 export type {
@@ -325,6 +331,9 @@ export type {
   KnowledgeEntryManifest,
   KnowledgeCollectionManifest,
   KnowledgeManifest,
+  CompanySop,
+  SopAsset,
+  CompanySopDetail,
 } from "./types/index.js";
 
 export {
@@ -561,6 +570,14 @@ export {
   type CreateKnowledgeCollection,
   type UpdateKnowledgeCollection,
   type UpdateKnowledgeEntry,
+} from "./validators/index.js";
+
+export {
+  createSopSchema,
+  updateSopSchema,
+  sopAssetKindSchema,
+  type CreateSop,
+  type UpdateSop,
 } from "./validators/index.js";
 
 export { API_PREFIX, API } from "./api.js";

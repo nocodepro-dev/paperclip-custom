@@ -20,6 +20,7 @@ import { loadPaperclipEnvFile } from "./config/env.js";
 import { registerWorktreeCommands } from "./commands/worktree.js";
 import { registerPluginCommands } from "./commands/client/plugin.js";
 import { registerKnowledgeCommands } from "./commands/client/knowledge.js";
+import { registerSopCommands } from "./commands/client/sop.js";
 import { registerClientAuthCommands } from "./commands/client/auth.js";
 
 const program = new Command();
@@ -141,6 +142,7 @@ registerDashboardCommands(program);
 registerWorktreeCommands(program);
 registerPluginCommands(program);
 registerKnowledgeCommands(program);
+registerSopCommands(program);
 
 const auth = program.command("auth").description("Authentication and bootstrap utilities");
 

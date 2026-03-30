@@ -687,3 +687,16 @@ export const PLUGIN_BRIDGE_ERROR_CODES = [
   "UNKNOWN",
 ] as const;
 export type PluginBridgeErrorCode = (typeof PLUGIN_BRIDGE_ERROR_CODES)[number];
+
+// ---------------------------------------------------------------------------
+// SOP Pipeline
+// ---------------------------------------------------------------------------
+
+export const SOP_STATUSES = ["draft", "active", "converting", "converted", "archived"] as const;
+export type SopStatus = (typeof SOP_STATUSES)[number];
+
+export const SOP_SOURCE_TYPES = ["upload", "replaydoc_export", "local_path"] as const;
+export type SopSourceType = (typeof SOP_SOURCE_TYPES)[number];
+
+export const SOP_ASSET_KINDS = ["screenshot", "template", "example", "reference"] as const;
+export type SopAssetKind = (typeof SOP_ASSET_KINDS)[number];
