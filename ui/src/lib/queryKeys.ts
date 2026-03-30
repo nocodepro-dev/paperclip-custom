@@ -57,6 +57,18 @@ export const queryKeys = {
     runs: (id: string) => ["routines", "runs", id] as const,
     activity: (companyId: string, id: string) => ["routines", "activity", companyId, id] as const,
   },
+  pipelines: {
+    list: (companyId: string) => ["pipelines", companyId] as const,
+    detail: (companyId: string, id: string) => ["pipelines", companyId, "detail", id] as const,
+    runs: (companyId: string, pipelineTemplateId?: string) =>
+      ["pipeline-runs", companyId, pipelineTemplateId ?? "__all__"] as const,
+    runDetail: (companyId: string, id: string) => ["pipeline-runs", companyId, "detail", id] as const,
+  },
+  sops: {
+    list: (companyId: string) => ["sops", companyId] as const,
+    detail: (id: string) => ["sops", "detail", id] as const,
+    conversion: (id: string) => ["sops", "conversion", id] as const,
+  },
   executionWorkspaces: {
     list: (companyId: string, filters?: Record<string, string | boolean | undefined>) =>
       ["execution-workspaces", companyId, filters ?? {}] as const,

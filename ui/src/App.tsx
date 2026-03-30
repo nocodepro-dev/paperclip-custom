@@ -36,6 +36,10 @@ import { PluginSettings } from "./pages/PluginSettings";
 import { PluginPage } from "./pages/PluginPage";
 import { RunTranscriptUxLab } from "./pages/RunTranscriptUxLab";
 import { OrgChart } from "./pages/OrgChart";
+import { Pipelines } from "./pages/Pipelines";
+import { PipelineDetail } from "./pages/PipelineDetail";
+import { SOPs } from "./pages/SOPs";
+import { SOPDetail } from "./pages/SOPDetail";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
@@ -126,6 +130,8 @@ function boardRoutes() {
       <Route path="company/export/*" element={<CompanyExport />} />
       <Route path="company/import" element={<CompanyImport />} />
       <Route path="skills/*" element={<CompanySkills />} />
+      <Route path="sops" element={<SOPs />} />
+      <Route path="sops/:sopId" element={<SOPDetail />} />
       <Route path="settings" element={<LegacySettingsRedirect />} />
       <Route path="settings/*" element={<LegacySettingsRedirect />} />
       <Route path="plugins/:pluginId" element={<PluginPage />} />
@@ -155,6 +161,8 @@ function boardRoutes() {
       <Route path="issues/:issueId" element={<IssueDetail />} />
       <Route path="routines" element={<Routines />} />
       <Route path="routines/:routineId" element={<RoutineDetail />} />
+      <Route path="pipelines" element={<Pipelines />} />
+      <Route path="pipelines/:pipelineId" element={<PipelineDetail />} />
       <Route path="execution-workspaces/:workspaceId" element={<ExecutionWorkspaceDetail />} />
       <Route path="goals" element={<Goals />} />
       <Route path="goals/:goalId" element={<GoalDetail />} />
@@ -324,7 +332,11 @@ export function App() {
           <Route path="issues/:issueId" element={<UnprefixedBoardRedirect />} />
           <Route path="routines" element={<UnprefixedBoardRedirect />} />
           <Route path="routines/:routineId" element={<UnprefixedBoardRedirect />} />
+          <Route path="pipelines" element={<UnprefixedBoardRedirect />} />
+          <Route path="pipelines/:pipelineId" element={<UnprefixedBoardRedirect />} />
           <Route path="skills/*" element={<UnprefixedBoardRedirect />} />
+          <Route path="sops" element={<UnprefixedBoardRedirect />} />
+          <Route path="sops/:sopId" element={<UnprefixedBoardRedirect />} />
           <Route path="settings" element={<LegacySettingsRedirect />} />
           <Route path="settings/*" element={<LegacySettingsRedirect />} />
           <Route path="agents" element={<UnprefixedBoardRedirect />} />
