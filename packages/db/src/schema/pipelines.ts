@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { agents } from "./agents.js";
 import { companies } from "./companies.js";
+import { companySkills } from "./company_skills.js";
 import { goals } from "./goals.js";
 import { issues } from "./issues.js";
 import { projects } from "./projects.js";
@@ -51,6 +52,7 @@ export const pipelineStages = pgTable(
     priority: text("priority").notNull().default("medium"),
     requiresApproval: boolean("requires_approval").notNull().default(false),
     timeoutMinutes: integer("timeout_minutes"),
+    suggestedSkillId: uuid("suggested_skill_id").references(() => companySkills.id, { onDelete: "set null" }),
     stageConfig: jsonb("stage_config").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

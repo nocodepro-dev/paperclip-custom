@@ -33,6 +33,7 @@ On the pipeline detail page, click **Add Stage** and provide:
 
 - **Title** — what this stage does (e.g. "Research", "Draft Article")
 - **Agent** (optional) — assign a specific agent, or leave blank for capability-based resolution
+- **Skill** (optional) — suggest a company skill for this stage. When set, the agent receives the skill name and key in the issue description so it knows which skill to apply.
 - **Requires Approval** — if checked, the stage's issue will require board approval before the agent can act
 - **Timeout** (optional) — minutes before the stage is considered stuck
 
@@ -60,6 +61,34 @@ Stages with **Requires Approval** enabled create issues that must be approved by
 - Budget-sensitive operations
 
 The pipeline pauses at that stage until the approval is granted.
+
+## Suggested skills
+
+Each stage can optionally reference a **company skill**. When the execution engine creates an issue for that stage, it includes the skill name and key in the issue description, telling the agent which skill to use.
+
+This is useful when:
+
+- A stage requires a specific procedure (e.g. "Customer Onboarding Checklist" skill)
+- You want agents to follow a converted SOP rather than improvising
+- Different stages of the same pipeline need different skills
+
+A stage can have any combination:
+
+| Agent | Skill | Behavior |
+|-------|-------|----------|
+| None | None | Engine resolves agent by capability, agent picks approach |
+| Set | None | Specific agent, picks their own approach |
+| None | Set | Engine resolves agent, tells them to use the skill |
+| Set | Set | Specific agent using a specific skill |
+
+Set a suggested skill from the UI skill picker when adding a stage, or via the CLI:
+
+```sh
+pnpm paperclipai pipeline stage add <pipelineId> \
+  --title "Onboard Customer" \
+  --stage-order 1 \
+  --suggested-skill-id <skillId>
+```
 
 ## Launching a run
 

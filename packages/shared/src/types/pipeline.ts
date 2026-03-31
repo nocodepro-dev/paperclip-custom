@@ -29,6 +29,7 @@ export interface PipelineStage {
   priority: string;
   requiresApproval: boolean;
   timeoutMinutes: number | null;
+  suggestedSkillId: string | null;
   stageConfig: Record<string, unknown> | null;
   createdAt: Date;
   updatedAt: Date;

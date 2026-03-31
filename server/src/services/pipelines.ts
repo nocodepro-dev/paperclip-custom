@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   agents,
+  companySkills,
   issues,
   issueDocuments,
   issueWorkProducts,
@@ -148,6 +149,7 @@ export function pipelineService(db: Db) {
         priority: input.priority ?? "medium",
         requiresApproval: input.requiresApproval ?? false,
         timeoutMinutes: input.timeoutMinutes ?? null,
+        suggestedSkillId: input.suggestedSkillId ?? null,
         stageConfig: input.stageConfig ?? null,
       })
       .returning();
@@ -430,6 +432,16 @@ export function pipelineService(db: Db) {
 
       // Build issue description with context from prior stages
       const contextLines: string[] = [];
+      if (stage.suggestedSkillId) {
+        const [skill] = await db
+          .select({ name: companySkills.name, key: companySkills.key })
+          .from(companySkills)
+          .where(eq(companySkills.id, stage.suggestedSkillId))
+          .limit(1);
+        if (skill) {
+          contextLines.push(`**Suggested skill:** ${skill.name} (\`${skill.key}\`)\n`);
+        }
+      }
       if (stage.description) contextLines.push(stage.description);
       if (Object.keys(aggregatedContext).length > 0) {
         contextLines.push("\n---\n**Pipeline context from prior stages:**\n```json\n" + JSON.stringify(aggregatedContext, null, 2) + "\n```");

@@ -7,6 +7,7 @@ import {
   Play,
   Plus,
   Shield,
+  Sparkles,
   Trash2,
   Users,
   Pause,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { pipelinesApi } from "../api/pipelines";
 import { agentsApi } from "../api/agents";
+import { companySkillsApi } from "../api/companySkills";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
@@ -48,6 +50,7 @@ export function PipelineDetail() {
     title: "",
     description: "",
     assigneeAgentId: "",
+    suggestedSkillId: "",
     requiresApproval: false,
     priority: "medium",
     timeoutMinutes: "",
@@ -74,9 +77,20 @@ export function PipelineDetail() {
     enabled: !!companyId,
   });
 
+  const { data: skills } = useQuery({
+    queryKey: queryKeys.companySkills.list(companyId),
+    queryFn: () => companySkillsApi.list(companyId),
+    enabled: !!companyId,
+  });
+
   const agentOptions: InlineEntityOption[] = (agents ?? []).map((a) => ({
     id: a.id,
     label: a.name,
+  }));
+
+  const skillOptions: InlineEntityOption[] = (skills ?? []).map((s) => ({
+    id: s.id,
+    label: s.name,
   }));
 
   useEffect(() => {
@@ -107,7 +121,7 @@ export function PipelineDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pipelines.detail(companyId, pipelineId!) });
       setAddStageOpen(false);
-      setStageDraft({ title: "", description: "", assigneeAgentId: "", requiresApproval: false, priority: "medium", timeoutMinutes: "" });
+      setStageDraft({ title: "", description: "", assigneeAgentId: "", suggestedSkillId: "", requiresApproval: false, priority: "medium", timeoutMinutes: "" });
       pushToast({ title: "Stage added", tone: "success" });
     },
     onError: (err) => {
@@ -176,6 +190,7 @@ export function PipelineDetail() {
       description: stageDraft.description.trim() || null,
       stageOrder: nextOrder,
       assigneeAgentId: stageDraft.assigneeAgentId || null,
+      suggestedSkillId: stageDraft.suggestedSkillId || null,
       requiresApproval: stageDraft.requiresApproval,
       priority: stageDraft.priority,
       timeoutMinutes: stageDraft.timeoutMinutes ? Number(stageDraft.timeoutMinutes) : null,
@@ -245,6 +260,7 @@ export function PipelineDetail() {
                   stage={stage}
                   index={idx}
                   agents={agents ?? []}
+                  skills={skills ?? []}
                   onDelete={() => {
                     if (confirm(`Delete stage "${stage.title}"?`)) {
                       deleteStageMutation.mutate(stage.id);
@@ -289,6 +305,15 @@ export function PipelineDetail() {
                   value={stageDraft.assigneeAgentId}
                   options={agentOptions}
                   onChange={(val) => setStageDraft((d) => ({ ...d, assigneeAgentId: val }))}
+                />
+                <InlineEntitySelector
+                  placeholder="Skill"
+                  noneLabel="No skill"
+                  searchPlaceholder="Search skills..."
+                  emptyMessage="No skills"
+                  value={stageDraft.suggestedSkillId}
+                  options={skillOptions}
+                  onChange={(val) => setStageDraft((d) => ({ ...d, suggestedSkillId: val }))}
                 />
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                   <input
@@ -385,15 +410,20 @@ function StageRow({
   stage,
   index,
   agents,
+  skills,
   onDelete,
 }: {
   stage: PipelineStage;
   index: number;
   agents: { id: string; name: string }[];
+  skills: { id: string; name: string }[];
   onDelete: () => void;
 }) {
   const assignee = stage.assigneeAgentId
     ? agents.find((a) => a.id === stage.assigneeAgentId)
+    : null;
+  const skill = stage.suggestedSkillId
+    ? skills.find((s) => s.id === stage.suggestedSkillId)
     : null;
 
   return (
@@ -415,6 +445,12 @@ function StageRow({
             <span className="inline-flex items-center gap-1 text-xs text-blue-400">
               <Users className="h-3 w-3" />
               {stage.parallelGroup}
+            </span>
+          )}
+          {skill && (
+            <span className="inline-flex items-center gap-1 text-xs text-purple-400">
+              <Sparkles className="h-3 w-3" />
+              {skill.name}
             </span>
           )}
         </div>

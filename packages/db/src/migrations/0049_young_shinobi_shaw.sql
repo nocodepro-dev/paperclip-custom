@@ -1,0 +1,2 @@
+ALTER TABLE "pipeline_stages" ADD COLUMN "suggested_skill_id" uuid;--> statement-breakpoint
+ALTER TABLE "pipeline_stages" ADD CONSTRAINT "pipeline_stages_suggested_skill_id_company_skills_id_fk" FOREIGN KEY ("suggested_skill_id") REFERENCES "public"."company_skills"("id") ON DELETE set null ON UPDATE no action;

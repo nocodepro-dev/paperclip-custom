@@ -39,6 +39,7 @@ export const createPipelineStageSchema = z.object({
   priority: z.enum(ISSUE_PRIORITIES).optional().default("medium"),
   requiresApproval: z.boolean().optional().default(false),
   timeoutMinutes: z.number().int().min(1).optional().nullable(),
+  suggestedSkillId: z.string().uuid().optional().nullable(),
   stageConfig: z.record(z.unknown()).optional().nullable(),
 });
 
