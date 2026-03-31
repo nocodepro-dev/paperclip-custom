@@ -13,6 +13,7 @@ import {
   Settings,
   Workflow,
   FileText,
+  BookOpen,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarSection } from "./SidebarSection";
@@ -114,6 +115,7 @@ export function Sidebar() {
           <SidebarNavItem to="/org" label="Org" icon={Network} />
           <SidebarNavItem to="/skills" label="Skills" icon={Boxes} />
           <SidebarNavItem to="/sops" label="SOPs" icon={FileText} textBadge="Beta" textBadgeTone="amber" />
+          <SidebarNavItem to="/knowledge" label="Knowledge" icon={BookOpen} textBadge="Beta" textBadgeTone="amber" />
           <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
           <SidebarNavItem to="/activity" label="Activity" icon={History} />
           <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />

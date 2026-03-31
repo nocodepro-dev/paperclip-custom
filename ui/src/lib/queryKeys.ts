@@ -69,6 +69,11 @@ export const queryKeys = {
     detail: (id: string) => ["sops", "detail", id] as const,
     conversion: (id: string) => ["sops", "conversion", id] as const,
   },
+  knowledge: {
+    list: (companyId: string) => ["knowledge", companyId] as const,
+    detail: (id: string) => ["knowledge", "detail", id] as const,
+    search: (companyId: string, q: string) => ["knowledge", "search", companyId, q] as const,
+  },
   executionWorkspaces: {
     list: (companyId: string, filters?: Record<string, string | boolean | undefined>) =>
       ["execution-workspaces", companyId, filters ?? {}] as const,

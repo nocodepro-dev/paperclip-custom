@@ -40,6 +40,8 @@ import { Pipelines } from "./pages/Pipelines";
 import { PipelineDetail } from "./pages/PipelineDetail";
 import { SOPs } from "./pages/SOPs";
 import { SOPDetail } from "./pages/SOPDetail";
+import { Knowledge } from "./pages/Knowledge";
+import { KnowledgeDetail } from "./pages/KnowledgeDetail";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
@@ -132,6 +134,8 @@ function boardRoutes() {
       <Route path="skills/*" element={<CompanySkills />} />
       <Route path="sops" element={<SOPs />} />
       <Route path="sops/:sopId" element={<SOPDetail />} />
+      <Route path="knowledge" element={<Knowledge />} />
+      <Route path="knowledge/:collectionId" element={<KnowledgeDetail />} />
       <Route path="settings" element={<LegacySettingsRedirect />} />
       <Route path="settings/*" element={<LegacySettingsRedirect />} />
       <Route path="plugins/:pluginId" element={<PluginPage />} />
@@ -337,6 +341,8 @@ export function App() {
           <Route path="skills/*" element={<UnprefixedBoardRedirect />} />
           <Route path="sops" element={<UnprefixedBoardRedirect />} />
           <Route path="sops/:sopId" element={<UnprefixedBoardRedirect />} />
+          <Route path="knowledge" element={<UnprefixedBoardRedirect />} />
+          <Route path="knowledge/:collectionId" element={<UnprefixedBoardRedirect />} />
           <Route path="settings" element={<LegacySettingsRedirect />} />
           <Route path="settings/*" element={<LegacySettingsRedirect />} />
           <Route path="agents" element={<UnprefixedBoardRedirect />} />
