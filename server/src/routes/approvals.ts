@@ -38,7 +38,13 @@ export function approvalRoutes(db: Db) {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
     const status = req.query.status as string | undefined;
-    const result = await svc.list(companyId, status);
+    const type = req.query.type as string | undefined;
+    const types = req.query.types as string | undefined;
+    const result = await svc.list(companyId, {
+      status,
+      type,
+      types: types ? types.split(",") : undefined,
+    });
     res.json(result.map((approval) => redactApprovalPayload(approval)));
   });
 
@@ -72,12 +78,34 @@ export function approvalRoutes(db: Db) {
         : approvalInput.payload;
 
     const actor = getActorInfo(req);
+
+    // Prevent duplicate pending skill requests from the same agent
+    const requestingAgentId =
+      approvalInput.requestedByAgentId ?? (actor.actorType === "agent" ? actor.actorId : null);
+    if (
+      requestingAgentId &&
+      (approvalInput.type === "skill_access_request" || approvalInput.type === "skill_creation_request")
+    ) {
+      const pending = await svc.list(companyId, { status: "pending", type: approvalInput.type });
+      const duplicate = pending.find((a) => {
+        if (a.requestedByAgentId !== requestingAgentId) return false;
+        const existingPayload = a.payload as Record<string, unknown>;
+        if (approvalInput.type === "skill_access_request") {
+          return existingPayload.skillId === normalizedPayload.skillId;
+        }
+        return existingPayload.suggestedName === normalizedPayload.suggestedName;
+      });
+      if (duplicate) {
+        res.status(200).json(redactApprovalPayload(duplicate));
+        return;
+      }
+    }
+
     const approval = await svc.create(companyId, {
       ...approvalInput,
       payload: normalizedPayload,
       requestedByUserId: actor.actorType === "user" ? actor.actorId : null,
-      requestedByAgentId:
-        approvalInput.requestedByAgentId ?? (actor.actorType === "agent" ? actor.actorId : null),
+      requestedByAgentId: requestingAgentId,
       status: "pending",
       decisionNote: null,
       decidedByUserId: null,

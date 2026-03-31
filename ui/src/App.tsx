@@ -44,6 +44,7 @@ import { Knowledge } from "./pages/Knowledge";
 import { KnowledgeDetail } from "./pages/KnowledgeDetail";
 import { Documentation } from "./pages/Documentation";
 import { NewAgent } from "./pages/NewAgent";
+import { SkillRequests } from "./pages/SkillRequests";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
 import { CliAuthPage } from "./pages/CliAuth";
@@ -175,6 +176,9 @@ function boardRoutes() {
       <Route path="approvals/pending" element={<Approvals />} />
       <Route path="approvals/all" element={<Approvals />} />
       <Route path="approvals/:approvalId" element={<ApprovalDetail />} />
+      <Route path="skill-requests" element={<Navigate to="/skill-requests/pending" replace />} />
+      <Route path="skill-requests/pending" element={<SkillRequests />} />
+      <Route path="skill-requests/all" element={<SkillRequests />} />
       <Route path="costs" element={<Costs />} />
       <Route path="activity" element={<Activity />} />
       <Route path="inbox" element={<InboxRootRedirect />} />

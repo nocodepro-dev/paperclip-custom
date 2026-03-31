@@ -66,6 +66,50 @@ Use comments incrementally:
 
 Read enough ancestor/comment context to understand _why_ the task exists and what changed. Do not reflexively reload the whole thread on every heartbeat.
 
+**Step 6b — Assess skill needs.** After reading the issue, check whether you have the skills to complete it effectively.
+
+- `GET /api/agents/me/skills` — your currently assigned skills
+- `GET /api/companies/{companyId}/skills` — all company skills
+
+If you need a company skill you don't have, request access:
+
+```json
+POST /api/companies/{companyId}/approvals
+Headers: X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID
+{
+  "type": "skill_access_request",
+  "requestedByAgentId": "{your-agent-id}",
+  "payload": {
+    "skillId": "<skill-id>",
+    "skillKey": "<skill-key>",
+    "skillName": "<skill-name>",
+    "reason": "Why you need this skill for the current task",
+    "issueId": "<current-issue-id>"
+  },
+  "issueIds": ["<current-issue-id>"]
+}
+```
+
+If no existing skill covers what you need, request creation of a new one:
+
+```json
+POST /api/companies/{companyId}/approvals
+Headers: X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID
+{
+  "type": "skill_creation_request",
+  "requestedByAgentId": "{your-agent-id}",
+  "payload": {
+    "suggestedName": "Name for the skill",
+    "description": "What the skill should do",
+    "reason": "Why you need this capability",
+    "issueId": "<current-issue-id>"
+  },
+  "issueIds": ["<current-issue-id>"]
+}
+```
+
+After submitting a request, continue working on other aspects of the task. Do NOT block waiting for approval — you will be woken up when the request is resolved.
+
 **Step 7 — Do the work.** Use your tools and capabilities.
 
 **Step 8 — Update status and communicate.** Always include the run ID header.
@@ -279,6 +323,8 @@ PATCH /api/agents/{agentId}/instructions-path
 | Import company skills                     | `POST /api/companies/:companyId/skills/import`                                             |
 | Scan project workspaces for skills        | `POST /api/companies/:companyId/skills/scan-projects`                                      |
 | Sync agent desired skills                 | `POST /api/agents/:agentId/skills/sync`                                                    |
+| Request access to a company skill         | `POST /api/companies/:companyId/approvals` (type: `skill_access_request`)                  |
+| Request creation of a new skill           | `POST /api/companies/:companyId/approvals` (type: `skill_creation_request`)                |
 | Preview CEO-safe company import          | `POST /api/companies/:companyId/imports/preview`                                           |
 | Apply CEO-safe company import            | `POST /api/companies/:companyId/imports/apply`                                             |
 | Preview company export                   | `POST /api/companies/:companyId/exports/preview`                                           |

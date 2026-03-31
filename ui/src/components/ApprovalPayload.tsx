@@ -1,10 +1,12 @@
-import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck } from "lucide-react";
+import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck, Boxes, Sparkles } from "lucide-react";
 import { formatCents } from "../lib/utils";
 
 export const typeLabel: Record<string, string> = {
   hire_agent: "Hire Agent",
   approve_ceo_strategy: "CEO Strategy",
   budget_override_required: "Budget Override",
+  skill_access_request: "Skill Request",
+  skill_creation_request: "New Skill Request",
 };
 
 /** Build a contextual label for an approval, e.g. "Hire Agent: Designer" */
@@ -13,6 +15,12 @@ export function approvalLabel(type: string, payload?: Record<string, unknown> | 
   if (type === "hire_agent" && payload?.name) {
     return `${base}: ${String(payload.name)}`;
   }
+  if (type === "skill_access_request" && payload?.skillName) {
+    return `${base}: ${String(payload.skillName)}`;
+  }
+  if (type === "skill_creation_request" && payload?.suggestedName) {
+    return `${base}: ${String(payload.suggestedName)}`;
+  }
   return base;
 }
 
@@ -20,6 +28,8 @@ export const typeIcon: Record<string, typeof UserPlus> = {
   hire_agent: UserPlus,
   approve_ceo_strategy: Lightbulb,
   budget_override_required: ShieldAlert,
+  skill_access_request: Boxes,
+  skill_creation_request: Sparkles,
 };
 
 export const defaultTypeIcon = ShieldCheck;
@@ -127,8 +137,58 @@ export function BudgetOverridePayload({ payload }: { payload: Record<string, unk
   );
 }
 
+export function SkillAccessRequestPayload({ payload }: { payload: Record<string, unknown> }) {
+  return (
+    <div className="mt-3 space-y-1.5 text-sm">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground w-20 sm:w-24 shrink-0 text-xs">Skill</span>
+        <span className="font-medium">{String(payload.skillName ?? payload.skillKey ?? "—")}</span>
+      </div>
+      {!!payload.skillKey && (
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground w-20 sm:w-24 shrink-0 text-xs">Key</span>
+          <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+            {String(payload.skillKey)}
+          </span>
+        </div>
+      )}
+      {!!payload.reason && (
+        <div className="flex items-start gap-2">
+          <span className="text-muted-foreground w-20 sm:w-24 shrink-0 text-xs pt-0.5">Reason</span>
+          <span className="text-muted-foreground">{String(payload.reason)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function SkillCreationRequestPayload({ payload }: { payload: Record<string, unknown> }) {
+  return (
+    <div className="mt-3 space-y-1.5 text-sm">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground w-20 sm:w-24 shrink-0 text-xs">Name</span>
+        <span className="font-medium">{String(payload.suggestedName ?? "—")}</span>
+      </div>
+      {!!payload.description && (
+        <div className="flex items-start gap-2">
+          <span className="text-muted-foreground w-20 sm:w-24 shrink-0 text-xs pt-0.5">Description</span>
+          <span className="text-muted-foreground">{String(payload.description)}</span>
+        </div>
+      )}
+      {!!payload.reason && (
+        <div className="flex items-start gap-2">
+          <span className="text-muted-foreground w-20 sm:w-24 shrink-0 text-xs pt-0.5">Reason</span>
+          <span className="text-muted-foreground">{String(payload.reason)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ApprovalPayloadRenderer({ type, payload }: { type: string; payload: Record<string, unknown> }) {
   if (type === "hire_agent") return <HireAgentPayload payload={payload} />;
   if (type === "budget_override_required") return <BudgetOverridePayload payload={payload} />;
+  if (type === "skill_access_request") return <SkillAccessRequestPayload payload={payload} />;
+  if (type === "skill_creation_request") return <SkillCreationRequestPayload payload={payload} />;
   return <CeoStrategyPayload payload={payload} />;
 }

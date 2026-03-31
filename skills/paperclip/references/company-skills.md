@@ -180,6 +180,51 @@ curl -sS -X POST "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/agents"
   }'
 ```
 
+## Requesting Skills You Don't Have
+
+If you are working on a task and realize you need a skill that is available in the company library but not assigned to you, you can request access. If no suitable skill exists, you can request that one be created.
+
+### Request access to an existing company skill
+
+```bash
+curl -s -X POST "$PAPERCLIP_API_BASE/api/companies/$PAPERCLIP_COMPANY_ID/approvals" \
+  -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" \
+  -d '{
+    "type": "skill_access_request",
+    "requestedByAgentId": "'"$PAPERCLIP_AGENT_ID"'",
+    "payload": {
+      "skillId": "<skill-uuid>",
+      "skillKey": "<company/skill-key>",
+      "skillName": "<skill display name>",
+      "reason": "Why this skill is needed for the current task"
+    },
+    "issueIds": ["<current-issue-id>"]
+  }'
+```
+
+### Request creation of a new skill
+
+```bash
+curl -s -X POST "$PAPERCLIP_API_BASE/api/companies/$PAPERCLIP_COMPANY_ID/approvals" \
+  -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" \
+  -d '{
+    "type": "skill_creation_request",
+    "requestedByAgentId": "'"$PAPERCLIP_AGENT_ID"'",
+    "payload": {
+      "suggestedName": "Name for the new skill",
+      "description": "What the skill should do and when it would be useful",
+      "reason": "Why this capability is needed"
+    },
+    "issueIds": ["<current-issue-id>"]
+  }'
+```
+
+After submitting either request, continue working on other aspects of the task. Do not block waiting for approval — you will be woken up automatically when the CEO or board resolves the request. If the skill access request is approved, it will be auto-assigned to you.
+
 ## Notes
 
 - Built-in Paperclip runtime skills are still added automatically when required by the adapter.

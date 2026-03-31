@@ -25,6 +25,7 @@ import { useCompany } from "../context/CompanyContext";
 import { heartbeatsApi } from "../api/heartbeats";
 import { queryKeys } from "../lib/queryKeys";
 import { useInboxBadge } from "../hooks/useInboxBadge";
+import { useSkillRequestBadge } from "../hooks/useSkillRequestBadge";
 import { Button } from "@/components/ui/button";
 import { PluginSlotOutlet } from "@/plugins/slots";
 
@@ -32,6 +33,7 @@ export function Sidebar() {
   const { openNewIssue } = useDialog();
   const { selectedCompanyId, selectedCompany } = useCompany();
   const inboxBadge = useInboxBadge(selectedCompanyId);
+  const skillRequestCount = useSkillRequestBadge(selectedCompanyId);
   const { data: liveRuns } = useQuery({
     queryKey: queryKeys.liveRuns(selectedCompanyId!),
     queryFn: () => heartbeatsApi.liveRunsForCompany(selectedCompanyId!),
@@ -113,6 +115,14 @@ export function Sidebar() {
 
         <SidebarSection label="Company">
           <SidebarNavItem to="/org" label="Org" icon={Network} />
+          <SidebarNavItem
+            to="/skill-requests"
+            label="Skill Requests"
+            icon={Boxes}
+            badge={skillRequestCount}
+            badgeTone="danger"
+            alert={skillRequestCount > 0}
+          />
           <SidebarNavItem to="/skills" label="Skills" icon={Boxes} />
           <SidebarNavItem to="/sops" label="SOPs" icon={FileText} textBadge="Beta" textBadgeTone="amber" />
           <SidebarNavItem to="/knowledge" label="Knowledge" icon={BookOpen} textBadge="Beta" textBadgeTone="amber" />

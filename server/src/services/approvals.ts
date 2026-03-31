@@ -1,6 +1,10 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { approvalComments, approvals } from "@paperclipai/db";
+import {
+  readPaperclipSkillSyncPreference,
+  writePaperclipSkillSyncPreference,
+} from "@paperclipai/adapter-utils/server-utils";
 import { notFound, unprocessable } from "../errors.js";
 import { redactCurrentUserText } from "../log-redaction.js";
 import { agentService } from "./agents.js";
@@ -79,9 +83,11 @@ export function approvalService(db: Db) {
   }
 
   return {
-    list: (companyId: string, status?: string) => {
+    list: (companyId: string, filters?: { status?: string; type?: string; types?: string[] }) => {
       const conditions = [eq(approvals.companyId, companyId)];
-      if (status) conditions.push(eq(approvals.status, status));
+      if (filters?.status) conditions.push(eq(approvals.status, filters.status));
+      if (filters?.type) conditions.push(eq(approvals.type, filters.type));
+      if (filters?.types && filters.types.length > 0) conditions.push(inArray(approvals.type, filters.types));
       return db.select().from(approvals).where(and(...conditions));
     },
 
@@ -162,6 +168,26 @@ export function approvalService(db: Db) {
             sourceId: id,
             approvedAt: now,
           }).catch(() => {});
+        }
+      }
+
+      if (applied && updated.type === "skill_access_request" && updated.requestedByAgentId) {
+        const payload = updated.payload as Record<string, unknown>;
+        const skillKey = typeof payload.skillKey === "string" ? payload.skillKey : null;
+        if (skillKey) {
+          const agent = await agentsSvc.getById(updated.requestedByAgentId);
+          if (agent) {
+            const config = (agent.adapterConfig ?? {}) as Record<string, unknown>;
+            const preference = readPaperclipSkillSyncPreference(config);
+            const currentSkills = preference.explicit ? preference.desiredSkills : [];
+            if (!currentSkills.includes(skillKey)) {
+              const updatedConfig = writePaperclipSkillSyncPreference(config, [
+                ...currentSkills,
+                skillKey,
+              ]);
+              await agentsSvc.update(agent.id, { adapterConfig: updatedConfig });
+            }
+          }
         }
       }
 
