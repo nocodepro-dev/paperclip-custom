@@ -19,6 +19,7 @@ import { routineRoutes } from "./routes/routines.js";
 import { executionWorkspaceRoutes } from "./routes/execution-workspaces.js";
 import { goalRoutes } from "./routes/goals.js";
 import { registerLocalRoutes } from "./local-extensions.js";
+import { docsRoutes } from "./routes/docs.js";
 import { approvalRoutes } from "./routes/approvals.js";
 import { secretRoutes } from "./routes/secrets.js";
 import { costRoutes } from "./routes/costs.js";
@@ -157,6 +158,7 @@ export async function createApp(
   api.use(sidebarBadgeRoutes(db));
   api.use(instanceSettingsRoutes(db));
   registerLocalRoutes(api, db);
+  api.use(docsRoutes());
   const hostServicesDisposers = new Map<string, () => void>();
   const workerManager = createPluginWorkerManager();
   const pluginRegistry = pluginRegistryService(db);

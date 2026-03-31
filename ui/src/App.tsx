@@ -42,6 +42,7 @@ import { SOPs } from "./pages/SOPs";
 import { SOPDetail } from "./pages/SOPDetail";
 import { Knowledge } from "./pages/Knowledge";
 import { KnowledgeDetail } from "./pages/KnowledgeDetail";
+import { Documentation } from "./pages/Documentation";
 import { NewAgent } from "./pages/NewAgent";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
@@ -182,6 +183,8 @@ function boardRoutes() {
       <Route path="inbox/unread" element={<Inbox />} />
       <Route path="inbox/all" element={<Inbox />} />
       <Route path="inbox/new" element={<Navigate to="/inbox/mine" replace />} />
+      <Route path="docs" element={<Documentation />} />
+      <Route path="docs/:slug" element={<Documentation />} />
       <Route path="design-guide" element={<DesignGuide />} />
       <Route path="tests/ux/runs" element={<RunTranscriptUxLab />} />
       <Route path=":pluginRoutePath" element={<PluginPage />} />
@@ -343,6 +346,8 @@ export function App() {
           <Route path="sops/:sopId" element={<UnprefixedBoardRedirect />} />
           <Route path="knowledge" element={<UnprefixedBoardRedirect />} />
           <Route path="knowledge/:collectionId" element={<UnprefixedBoardRedirect />} />
+          <Route path="docs" element={<UnprefixedBoardRedirect />} />
+          <Route path="docs/:slug" element={<UnprefixedBoardRedirect />} />
           <Route path="settings" element={<LegacySettingsRedirect />} />
           <Route path="settings/*" element={<LegacySettingsRedirect />} />
           <Route path="agents" element={<UnprefixedBoardRedirect />} />
