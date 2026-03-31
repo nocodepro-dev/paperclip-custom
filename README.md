@@ -4,22 +4,20 @@
 
 <p align="center">
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
-  <a href="https://paperclip.ing/docs"><strong>Docs</strong></a> &middot;
-  <a href="https://github.com/paperclipai/paperclip"><strong>GitHub</strong></a> &middot;
+  <a href="#custom-features"><strong>Custom Features</strong></a> &middot;
+  <a href="https://paperclip.ing/docs"><strong>Upstream Docs</strong></a> &middot;
+  <a href="https://github.com/nocodepro-dev/paperclip-custom"><strong>GitHub</strong></a> &middot;
   <a href="https://discord.gg/m4HZY7xNG3"><strong>Discord</strong></a>
 </p>
 
 <p align="center">
   <a href="https://github.com/paperclipai/paperclip/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
-  <a href="https://github.com/paperclipai/paperclip/stargazers"><img src="https://img.shields.io/github/stars/paperclipai/paperclip?style=flat" alt="Stars" /></a>
-  <a href="https://discord.gg/m4HZY7xNG3"><img src="https://img.shields.io/discord/000000000?label=discord" alt="Discord" /></a>
+  <img src="https://img.shields.io/badge/fork-nocodepro--dev-blueviolet" alt="NoCodePro Fork" />
 </p>
 
 <br/>
 
-<div align="center">
-  <video src="https://github.com/user-attachments/assets/773bdfb2-6d1e-4e30-8c5f-3487d5b70c8f" width="600" controls></video>
-</div>
+> **This is NoCodePro's custom fork of [Paperclip](https://github.com/paperclipai/paperclip).** It includes all upstream features plus custom extensions for knowledge management, multi-agent pipelines, and SOP-to-skill conversion. Custom features are isolated in `local-extensions.ts` files for clean upstream merging.
 
 <br/>
 
@@ -127,6 +125,43 @@ Monitor and manage your autonomous businesses from anywhere.
 
 <br/>
 
+## Custom Features
+
+This fork adds three major features on top of upstream Paperclip. All are accessible from the dashboard UI, CLI, and REST API. In-app guides are available at `/docs` in the dashboard.
+
+### Knowledge Base
+
+Index directories on your filesystem so agents can discover and retrieve reference documents (PRDs, design systems, schemas, screenshots) during task execution. Files stay on disk — Paperclip only stores metadata.
+
+- **Scan directories** from the UI or CLI (`pnpm paperclipai knowledge scan <path>`)
+- **Auto-categorizes** entries by kind: document, design_system, schema, screenshot, flow, brief, sop, asset
+- **Manifest injection** — agents receive a lightweight knowledge manifest during heartbeats
+- **On-demand retrieval** — agents fetch full file content via REST API when needed
+- **Change detection** — rescan to detect added, changed, and removed files via SHA256
+
+### Pipelines
+
+Sequential multi-agent orchestration. Define stages, assign agents, launch runs that auto-advance as each stage completes.
+
+- **Stage-based execution** — ordered stages with agent assignment or capability-based resolution
+- **Approval gates** — stages can require board approval before agents act
+- **Parallel groups** — stages at the same order level run concurrently
+- **Context passing** — output from completed stages is aggregated and passed to subsequent stages
+- **Auto-advance** — when an agent completes a stage's issue, the next stage launches automatically
+- **Run control** — pause, resume, or cancel active runs from the UI
+
+### SOP-to-Skill Converter
+
+Transform human standard operating procedures into agent-executable skills through a three-phase pipeline:
+
+1. **Capture** — upload SOPs as markdown (with optional screenshots) from the UI or CLI
+2. **Convert** — analyzer detects tools needed (40+ supported), scores automation feasibility, generates a SKILL.md draft
+3. **Equip** — checks whether required tools/plugins are installed, provides guidance for missing ones
+
+Features review mode (approve/reject draft skills with feedback) and auto mode (skip review). The automation score shows what percentage of steps can be fully automated.
+
+<br/>
+
 ## Problems Paperclip solves
 
 | Without Paperclip                                                                                                                     | With Paperclip                                                                                                                         |
@@ -180,8 +215,8 @@ npx paperclipai onboard --yes
 Or manually:
 
 ```bash
-git clone https://github.com/paperclipai/paperclip.git
-cd paperclip
+git clone https://github.com/nocodepro-dev/paperclip-custom.git
+cd paperclip-custom
 pnpm install
 pnpm dev
 ```
@@ -241,6 +276,10 @@ See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
 - ✅ Skills Manager
 - ✅ Scheduled Routines
 - ✅ Better Budgeting
+- ✅ Knowledge Base *(custom)*
+- ✅ Pipelines — multi-agent orchestration *(custom)*
+- ✅ SOP-to-Skill Converter *(custom)*
+- ✅ In-app Documentation / Guides *(custom)*
 - ⚪ Artifacts & Deployments
 - ⚪ CEO Chat
 - ⚪ MAXIMIZER MODE
@@ -263,19 +302,15 @@ We welcome contributions. See the [contributing guide](CONTRIBUTING.md) for deta
 
 ## Community
 
-- [Discord](https://discord.gg/m4HZY7xNG3) — Join the community
-- [GitHub Issues](https://github.com/paperclipai/paperclip/issues) — bugs and feature requests
-- [GitHub Discussions](https://github.com/paperclipai/paperclip/discussions) — ideas and RFC
+- [Discord](https://discord.gg/m4HZY7xNG3) — Join the Paperclip community
+- [Upstream GitHub](https://github.com/paperclipai/paperclip) — upstream bugs and feature requests
+- [This Fork](https://github.com/nocodepro-dev/paperclip-custom) — custom feature issues
 
 <br/>
 
 ## License
 
 MIT &copy; 2026 Paperclip
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/image?repos=paperclipai/paperclip&type=date&legend=top-left)](https://www.star-history.com/?repos=paperclipai%2Fpaperclip&type=date&legend=top-left)
 
 <br/>
 
@@ -286,5 +321,6 @@ MIT &copy; 2026 Paperclip
 </p>
 
 <p align="center">
-  <sub>Open source under MIT. Built for people who want to run companies, not babysit agents.</sub>
+  <sub>Open source under MIT. Built for people who want to run companies, not babysit agents.</sub><br/>
+  <sub>Custom fork maintained by <a href="https://github.com/nocodepro-dev">NoCodePro</a> &middot; Upstream: <a href="https://github.com/paperclipai/paperclip">paperclipai/paperclip</a></sub>
 </p>
