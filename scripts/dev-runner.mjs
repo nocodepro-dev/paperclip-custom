@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { spawn, execSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -280,25 +280,56 @@ async function runPnpm(args, options = {}) {
 }
 
 async function getMigrationStatusPayload() {
-  const status = await runPnpm(
-    ["--filter", "@paperclipai/db", "exec", "tsx", "src/migration-status.ts", "--json"],
-    { env },
-  );
+  const timeoutMs = 30_000;
+  const args = ["--filter", "@paperclipai/db", "exec", "tsx", "src/migration-status.ts", "--json"];
+  const spawned = spawn(pnpmBin, args, {
+    stdio: ["ignore", "pipe", "pipe"],
+    env,
+    shell: process.platform === "win32",
+  });
+
+  let stdoutBuffer = "";
+  let stderrBuffer = "";
+  if (spawned.stdout) spawned.stdout.on("data", (chunk) => { stdoutBuffer += String(chunk); });
+  if (spawned.stderr) spawned.stderr.on("data", (chunk) => { stderrBuffer += String(chunk); });
+
+  const status = await Promise.race([
+    new Promise((resolve, reject) => {
+      spawned.on("error", reject);
+      spawned.on("exit", (code, signal) => resolve({ code: code ?? 0, signal }));
+    }),
+    new Promise((resolve) =>
+      setTimeout(() => resolve("timeout"), timeoutMs),
+    ),
+  ]);
+
+  if (status === "timeout") {
+    // Kill the subprocess tree so it doesn't leave orphaned postgres processes.
+    try { process.kill(spawned.pid, "SIGTERM"); } catch {}
+    if (process.platform === "win32") {
+      try { execSync(`taskkill /F /T /PID ${spawned.pid}`, { stdio: "ignore" }); } catch {}
+    }
+    console.warn(
+      `[paperclip] migration-status check timed out after ${timeoutMs / 1000}s — skipping preflight check (the server will handle migrations on startup)`,
+    );
+    return { status: "upToDate", pendingMigrations: [] };
+  }
+
   if (status.code !== 0) {
     process.stderr.write(
-      status.stderr ||
-        status.stdout ||
+      stderrBuffer ||
+        stdoutBuffer ||
         `[paperclip] Command failed with code ${status.code}: pnpm --filter @paperclipai/db exec tsx src/migration-status.ts --json\n`,
     );
     process.exit(status.code);
   }
 
   try {
-    return JSON.parse(status.stdout.trim());
+    return JSON.parse(stdoutBuffer.trim());
   } catch (error) {
     process.stderr.write(
-      status.stderr ||
-        status.stdout ||
+      stderrBuffer ||
+        stdoutBuffer ||
         "[paperclip] migration-status returned invalid JSON payload\n",
     );
     throw toError(error, "Unable to parse migration-status JSON output");
@@ -374,7 +405,9 @@ async function maybePreflightMigrations(options = {}) {
     process.exit(exit.code);
   }
 
-  await refreshPendingMigrations();
+  // Migrations just succeeded — skip re-checking (avoids restarting embedded PG).
+  pendingMigrations = [];
+  writeDevServerStatus();
 }
 
 async function buildPluginSdk() {
