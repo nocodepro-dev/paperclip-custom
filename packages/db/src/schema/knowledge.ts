@@ -60,6 +60,8 @@ export const knowledgeEntries = pgTable(
     summary: text("summary"),
     lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    groupId: uuid("group_id"),
+    groupRole: text("group_role"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -70,5 +72,30 @@ export const knowledgeEntries = pgTable(
     ),
     companyKindIdx: index("knowledge_entries_company_kind_idx").on(table.companyId, table.kind),
     collectionIdx: index("knowledge_entries_collection_idx").on(table.collectionId),
+  }),
+);
+
+export const knowledgeGroups = pgTable(
+  "knowledge_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => knowledgeCollections.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    relativePath: text("relative_path").notNull(),
+    kind: text("kind").notNull().default("document_set"),
+    primaryEntryId: uuid("primary_entry_id"),
+    entryCount: integer("entry_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    collectionIdx: index("knowledge_groups_collection_idx").on(table.collectionId),
+    collectionPathUniqueIdx: uniqueIndex("knowledge_groups_collection_path_idx").on(
+      table.collectionId,
+      table.relativePath,
+    ),
   }),
 );

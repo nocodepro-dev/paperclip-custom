@@ -351,6 +351,13 @@
       "when": 1774955981995,
       "tag": "0049_young_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1775318661835,
+      "tag": "0050_purple_avengers",
+      "breakpoints": true
     }
   ]
 }
