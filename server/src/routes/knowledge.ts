@@ -194,5 +194,62 @@ export function knowledgeRoutes(db: Db) {
     res.json(results);
   });
 
+  // ── Group endpoints ──────────────────────────────────────────────
+
+  router.get("/knowledge/collections/:id/groups", async (req, res) => {
+    const id = req.params.id as string;
+    const collection = await svc.getCollectionById(id);
+    if (!collection) {
+      res.status(404).json({ error: "Collection not found" });
+      return;
+    }
+    assertCompanyAccess(req, collection.companyId);
+    const groups = await svc.listGroups(id);
+    res.json(groups);
+  });
+
+  router.get("/knowledge/groups/:groupId", async (req, res) => {
+    const groupId = req.params.groupId as string;
+    const detail = await svc.getGroupDetail(groupId);
+    if (!detail) {
+      res.status(404).json({ error: "Group not found" });
+      return;
+    }
+    const collection = await svc.getCollectionById(detail.collectionId);
+    if (!collection) {
+      res.status(404).json({ error: "Collection not found" });
+      return;
+    }
+    assertCompanyAccess(req, collection.companyId);
+    res.json(detail);
+  });
+
+  router.get("/knowledge/groups/:groupId/content", async (req, res) => {
+    const groupId = req.params.groupId as string;
+    const group = await svc.getGroupById(groupId);
+    if (!group) {
+      res.status(404).json({ error: "Group not found" });
+      return;
+    }
+    const collection = await svc.getCollectionById(group.collectionId);
+    if (!collection) {
+      res.status(404).json({ error: "Collection not found" });
+      return;
+    }
+    assertCompanyAccess(req, collection.companyId);
+
+    try {
+      const content = await svc.getGroupContent(groupId);
+      if (!content) {
+        res.status(404).json({ error: "Group content not found" });
+        return;
+      }
+      res.json(content);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to retrieve group content";
+      res.status(500).json({ error: message });
+    }
+  });
+
   return router;
 }
