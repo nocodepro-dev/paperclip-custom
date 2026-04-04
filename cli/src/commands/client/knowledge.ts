@@ -184,7 +184,16 @@ export function registerKnowledgeCommands(program: Command): void {
       .action(async (collectionId: string, opts: KnowledgeEntriesOptions) => {
         try {
           const ctx = resolveCommandContext(opts);
-          const detail = await ctx.api.get<{ entries: KnowledgeEntry[] }>(
+          const detail = await ctx.api.get<{
+            entries: KnowledgeEntry[];
+            groups?: Array<{
+              id: string;
+              name: string;
+              kind: string;
+              entryCount: number;
+              description: string | null;
+            }>;
+          }>(
             `/api/knowledge/collections/${collectionId}`,
           );
 
@@ -199,8 +208,24 @@ export function registerKnowledgeCommands(program: Command): void {
           }
 
           if (ctx.json) {
-            printOutput(entries, { json: true });
+            printOutput({ groups: detail.groups ?? [], entries }, { json: true });
             return;
+          }
+
+          // Show groups first
+          if (detail.groups && detail.groups.length > 0) {
+            console.log(pc.bold("\nGroups:"));
+            for (const group of detail.groups) {
+              console.log(
+                formatInlineRecord({
+                  name: group.name,
+                  kind: group.kind,
+                  entries: group.entryCount,
+                  summary: group.description ? group.description.slice(0, 60) : "",
+                }),
+              );
+            }
+            console.log("");
           }
 
           if (entries.length === 0) {
@@ -208,6 +233,7 @@ export function registerKnowledgeCommands(program: Command): void {
             return;
           }
 
+          console.log(pc.bold("Entries:"));
           for (const entry of entries) {
             console.log(
               formatInlineRecord({
