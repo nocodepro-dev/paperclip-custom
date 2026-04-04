@@ -3,12 +3,13 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { and, eq, ilike, or, isNull } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import { knowledgeCollections, knowledgeEntries } from "@paperclipai/db";
+import { knowledgeCollections, knowledgeEntries, knowledgeGroups } from "@paperclipai/db";
 import type {
   KnowledgeEntryKind,
   KnowledgeRescanResult,
   KnowledgeManifest,
   KnowledgeCollectionManifest,
+  KnowledgeGroupKind,
 } from "@paperclipai/shared";
 
 const EXCLUDED_DIRS = new Set([
@@ -180,6 +181,93 @@ async function walkDirectory(
   return results;
 }
 
+interface DetectedGroup {
+  relativePath: string;
+  name: string;
+  kind: KnowledgeGroupKind;
+  files: ScannedFile[];
+  primaryIndex: number | null;
+}
+
+function cleanGroupName(folderName: string): string {
+  // Remove timestamp suffixes like "(Mar 05, 2026 at 6-22 AM)"
+  return folderName.replace(/\s*\([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4}\s+at\s+\d{1,2}-\d{2}\s+[AP]M\)\s*$/, "").trim();
+}
+
+function detectGroupKind(files: ScannedFile[], folderName: string): KnowledgeGroupKind {
+  const hasScreenshotsSubfolder = files.some((f) => f.relativePath.includes("/screenshots/"));
+  const hasMarkdown = files.some((f) => f.contentType === "text/markdown");
+  if (hasMarkdown && hasScreenshotsSubfolder) return "flow";
+
+  const lowerName = folderName.toLowerCase();
+  if (lowerName.includes("design") && files.some((f) => f.contentType === "text/css" || f.contentType === "text/html")) {
+    return "design_system";
+  }
+
+  const imageCount = files.filter((f) => f.contentType.startsWith("image/")).length;
+  if (imageCount > files.length / 2 && !hasMarkdown) return "asset_bundle";
+
+  return "document_set";
+}
+
+function detectPrimaryFile(files: ScannedFile[]): number | null {
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (f.contentType !== "text/markdown") continue;
+    const depth = f.relativePath.split("/").length;
+    if (depth <= 2) return i;
+  }
+
+  let bestIdx: number | null = null;
+  let bestSize = 0;
+  for (let i = 0; i < files.length; i++) {
+    if (files[i].contentType === "text/markdown" && files[i].byteSize > bestSize) {
+      bestSize = files[i].byteSize;
+      bestIdx = i;
+    }
+  }
+  return bestIdx;
+}
+
+function detectGroups(allFiles: ScannedFile[]): { groups: DetectedGroup[]; ungrouped: ScannedFile[] } {
+  const folderFiles = new Map<string, ScannedFile[]>();
+  const rootFiles: ScannedFile[] = [];
+
+  for (const file of allFiles) {
+    const parts = file.relativePath.split("/");
+    if (parts.length === 1) {
+      rootFiles.push(file);
+    } else {
+      const topFolder = parts[0];
+      if (!folderFiles.has(topFolder)) folderFiles.set(topFolder, []);
+      folderFiles.get(topFolder)!.push(file);
+    }
+  }
+
+  const groups: DetectedGroup[] = [];
+  const ungrouped: ScannedFile[] = [...rootFiles];
+
+  for (const [folderName, files] of folderFiles) {
+    if (files.length < 2) {
+      ungrouped.push(...files);
+      continue;
+    }
+
+    const kind = detectGroupKind(files, folderName);
+    const primaryIndex = detectPrimaryFile(files);
+
+    groups.push({
+      relativePath: folderName,
+      name: cleanGroupName(folderName),
+      kind,
+      files,
+      primaryIndex,
+    });
+  }
+
+  return { groups, ungrouped };
+}
+
 export function knowledgeService(db: Db) {
   return {
     async createCollection(
@@ -220,9 +308,14 @@ export function knowledgeService(db: Db) {
 
       // Scan directory
       const files = await walkDirectory(sourcePath);
-      if (files.length > 0) {
+
+      // Detect groups from folder structure
+      const { groups: detectedGroups, ungrouped } = detectGroups(files);
+
+      // Insert ungrouped entries
+      if (ungrouped.length > 0) {
         await db.insert(knowledgeEntries).values(
-          files.map((f) => ({
+          ungrouped.map((f) => ({
             collectionId: collection.id,
             companyId,
             relativePath: f.relativePath,
@@ -233,8 +326,55 @@ export function knowledgeService(db: Db) {
             sha256: f.sha256,
             summary: f.summary,
             lastVerifiedAt: new Date(),
+            groupId: null,
+            groupRole: null,
           })),
         );
+      }
+
+      // Insert groups with their entries
+      for (const group of detectedGroups) {
+        const [groupRecord] = await db
+          .insert(knowledgeGroups)
+          .values({
+            collectionId: collection.id,
+            name: group.name,
+            relativePath: group.relativePath,
+            kind: group.kind,
+            entryCount: group.files.length,
+          })
+          .returning();
+
+        const insertedEntries = await db
+          .insert(knowledgeEntries)
+          .values(
+            group.files.map((f, i) => ({
+              collectionId: collection.id,
+              companyId,
+              relativePath: f.relativePath,
+              name: f.name,
+              kind: f.kind,
+              contentType: f.contentType,
+              byteSize: f.byteSize,
+              sha256: f.sha256,
+              summary: f.summary,
+              lastVerifiedAt: new Date(),
+              groupId: groupRecord.id,
+              groupRole: (i === group.primaryIndex ? "primary" : "asset") as string,
+            })),
+          )
+          .returning();
+
+        const primaryEntry = group.primaryIndex !== null ? insertedEntries[group.primaryIndex] : null;
+        if (primaryEntry) {
+          await db
+            .update(knowledgeGroups)
+            .set({
+              primaryEntryId: primaryEntry.id,
+              description: primaryEntry.summary,
+            })
+            .where(eq(knowledgeGroups.id, groupRecord.id));
+        }
       }
 
       // Update collection stats
@@ -295,7 +435,12 @@ export function knowledgeService(db: Db) {
         .from(knowledgeEntries)
         .where(eq(knowledgeEntries.collectionId, collectionId));
 
-      return { ...collection, entries };
+      const groups = await db
+        .select()
+        .from(knowledgeGroups)
+        .where(eq(knowledgeGroups.collectionId, collectionId));
+
+      return { ...collection, entries, groups };
     },
 
     async updateCollection(
@@ -322,6 +467,107 @@ export function knowledgeService(db: Db) {
         .where(eq(knowledgeCollections.id, id))
         .returning()
         .then((rows) => rows[0] ?? null);
+    },
+
+    // ── Group methods ──────────────────────────────────────────────────
+
+    async listGroups(collectionId: string) {
+      return db
+        .select()
+        .from(knowledgeGroups)
+        .where(eq(knowledgeGroups.collectionId, collectionId));
+    },
+
+    async getGroupById(groupId: string) {
+      return db
+        .select()
+        .from(knowledgeGroups)
+        .where(eq(knowledgeGroups.id, groupId))
+        .then((rows) => rows[0] ?? null);
+    },
+
+    async getGroupDetail(groupId: string) {
+      const group = await db
+        .select()
+        .from(knowledgeGroups)
+        .where(eq(knowledgeGroups.id, groupId))
+        .then((rows) => rows[0] ?? null);
+
+      if (!group) return null;
+
+      const entries = await db
+        .select()
+        .from(knowledgeEntries)
+        .where(eq(knowledgeEntries.groupId, groupId));
+
+      return { ...group, entries };
+    },
+
+    async getGroupContent(groupId: string) {
+      const group = await db
+        .select()
+        .from(knowledgeGroups)
+        .where(eq(knowledgeGroups.id, groupId))
+        .then((rows) => rows[0] ?? null);
+
+      if (!group) return null;
+
+      const entries = await db
+        .select()
+        .from(knowledgeEntries)
+        .where(eq(knowledgeEntries.groupId, groupId));
+
+      const collection = await db
+        .select()
+        .from(knowledgeCollections)
+        .where(eq(knowledgeCollections.id, group.collectionId))
+        .then((rows) => rows[0] ?? null);
+
+      if (!collection) return null;
+
+      const primaryEntry = entries.find((e) => e.groupRole === "primary");
+      const assetEntries = entries.filter((e) => e.groupRole === "asset");
+
+      let primaryContent: { id: string; name: string; content: string } | null = null;
+      if (primaryEntry) {
+        try {
+          const fullPath = path.join(collection.sourcePath, primaryEntry.relativePath);
+          const content = await readFile(fullPath, "utf-8");
+          primaryContent = { id: primaryEntry.id, name: primaryEntry.name, content };
+        } catch {
+          // primary file not readable
+        }
+      }
+
+      const assets: Array<{
+        id: string;
+        name: string;
+        relativePath: string;
+        contentType: string;
+        base64: string;
+      }> = [];
+
+      for (const asset of assetEntries) {
+        try {
+          const fullPath = path.join(collection.sourcePath, asset.relativePath);
+          const buffer = await readFile(fullPath);
+          assets.push({
+            id: asset.id,
+            name: asset.name,
+            relativePath: asset.relativePath,
+            contentType: asset.contentType,
+            base64: buffer.toString("base64"),
+          });
+        } catch {
+          // skip unreadable assets
+        }
+      }
+
+      return {
+        group: { id: group.id, name: group.name, kind: group.kind },
+        primary: primaryContent,
+        assets,
+      };
     },
 
     async rescanCollection(collectionId: string): Promise<KnowledgeRescanResult> {
@@ -396,6 +642,61 @@ export function knowledgeService(db: Db) {
         if (!scannedPaths.has(existing.relativePath)) {
           await db.delete(knowledgeEntries).where(eq(knowledgeEntries.id, existing.id));
           removed++;
+        }
+      }
+
+      // ── Reconcile groups ─────────────────────────────────────────────
+      await db.delete(knowledgeGroups).where(eq(knowledgeGroups.collectionId, collectionId));
+
+      const { groups: detectedGroups, ungrouped: ungroupedFiles } = detectGroups(scannedFiles);
+
+      await db
+        .update(knowledgeEntries)
+        .set({ groupId: null, groupRole: null })
+        .where(eq(knowledgeEntries.collectionId, collectionId));
+
+      const currentEntries = await db
+        .select()
+        .from(knowledgeEntries)
+        .where(eq(knowledgeEntries.collectionId, collectionId));
+      const entryByPath = new Map(currentEntries.map((e) => [e.relativePath, e]));
+
+      for (const group of detectedGroups) {
+        const [groupRecord] = await db
+          .insert(knowledgeGroups)
+          .values({
+            collectionId,
+            name: group.name,
+            relativePath: group.relativePath,
+            kind: group.kind,
+            entryCount: group.files.length,
+          })
+          .returning();
+
+        let primaryEntryId: string | null = null;
+        let primarySummary: string | null = null;
+
+        for (let i = 0; i < group.files.length; i++) {
+          const entry = entryByPath.get(group.files[i].relativePath);
+          if (!entry) continue;
+
+          const role = i === group.primaryIndex ? "primary" : "asset";
+          await db
+            .update(knowledgeEntries)
+            .set({ groupId: groupRecord.id, groupRole: role })
+            .where(eq(knowledgeEntries.id, entry.id));
+
+          if (role === "primary") {
+            primaryEntryId = entry.id;
+            primarySummary = entry.summary;
+          }
+        }
+
+        if (primaryEntryId) {
+          await db
+            .update(knowledgeGroups)
+            .set({ primaryEntryId, description: primarySummary })
+            .where(eq(knowledgeGroups.id, groupRecord.id));
         }
       }
 
@@ -538,19 +839,45 @@ export function knowledgeService(db: Db) {
           .from(knowledgeEntries)
           .where(eq(knowledgeEntries.collectionId, collection.id));
 
+        const groups = await db
+          .select()
+          .from(knowledgeGroups)
+          .where(eq(knowledgeGroups.collectionId, collection.id));
+
+        const mapEntry = (e: typeof knowledgeEntries.$inferSelect) => ({
+          id: e.id,
+          name: e.name,
+          kind: e.kind as KnowledgeEntryKind,
+          relativePath: e.relativePath,
+          summary: e.summary,
+          contentType: e.contentType,
+          byteSize: Number(e.byteSize),
+        });
+
+        const groupManifests = groups.map((g) => {
+          const groupEntries = entries.filter((e) => e.groupId === g.id);
+          const primary = groupEntries.find((e) => e.groupRole === "primary");
+          return {
+            id: g.id,
+            name: g.name,
+            kind: g.kind as KnowledgeGroupKind,
+            entryCount: groupEntries.length,
+            primarySummary: primary?.summary ?? g.description,
+            entries: groupEntries.slice(0, 50).map(mapEntry),
+          };
+        });
+
+        const ungroupedEntries = entries
+          .filter((e) => !e.groupId)
+          .slice(0, MAX_MANIFEST_ENTRIES)
+          .map(mapEntry);
+
         return {
           id: collection.id,
           name: collection.name,
           description: collection.description,
-          entries: entries.slice(0, MAX_MANIFEST_ENTRIES).map((e) => ({
-            id: e.id,
-            name: e.name,
-            kind: e.kind as KnowledgeEntryKind,
-            relativePath: e.relativePath,
-            summary: e.summary,
-            contentType: e.contentType,
-            byteSize: Number(e.byteSize),
-          })),
+          groups: groupManifests,
+          ungroupedEntries,
         };
       };
 

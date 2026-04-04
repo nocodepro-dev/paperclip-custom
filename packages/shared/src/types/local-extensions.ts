@@ -13,8 +13,6 @@ export type {
   KnowledgeEntryManifest,
   KnowledgeCollectionManifest,
   KnowledgeManifest,
-  KnowledgeGroupKind,
-  KnowledgeGroupRole,
   KnowledgeGroup,
   KnowledgeGroupDetail,
   KnowledgeGroupContentResponse,
