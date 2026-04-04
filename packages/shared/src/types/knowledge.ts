@@ -43,6 +43,8 @@ export interface KnowledgeEntry {
   summary: string | null;
   lastVerifiedAt: Date | null;
   metadata: Record<string, unknown> | null;
+  groupId: string | null;
+  groupRole: KnowledgeGroupRole | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,10 +96,61 @@ export interface KnowledgeCollectionManifest {
   id: string;
   name: string;
   description: string | null;
-  entries: KnowledgeEntryManifest[];
+  groups: KnowledgeGroupManifest[];
+  ungroupedEntries: KnowledgeEntryManifest[];
 }
 
 export interface KnowledgeManifest {
   companyCollections: KnowledgeCollectionManifest[];
   projectCollections: KnowledgeCollectionManifest[];
+}
+
+export type KnowledgeGroupKind = "flow" | "design_system" | "asset_bundle" | "document_set";
+
+export type KnowledgeGroupRole = "primary" | "asset";
+
+export interface KnowledgeGroup {
+  id: string;
+  collectionId: string;
+  name: string;
+  description: string | null;
+  relativePath: string;
+  kind: KnowledgeGroupKind;
+  primaryEntryId: string | null;
+  entryCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface KnowledgeGroupDetail extends KnowledgeGroup {
+  entries: KnowledgeEntry[];
+}
+
+export interface KnowledgeGroupContentResponse {
+  group: {
+    id: string;
+    name: string;
+    kind: KnowledgeGroupKind;
+  };
+  primary: {
+    id: string;
+    name: string;
+    content: string;
+  } | null;
+  assets: Array<{
+    id: string;
+    name: string;
+    relativePath: string;
+    contentType: string;
+    base64: string;
+  }>;
+}
+
+export interface KnowledgeGroupManifest {
+  id: string;
+  name: string;
+  kind: KnowledgeGroupKind;
+  entryCount: number;
+  primarySummary: string | null;
+  entries: KnowledgeEntryManifest[];
 }

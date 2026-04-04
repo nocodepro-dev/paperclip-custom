@@ -13,6 +13,12 @@ export type {
   KnowledgeEntryManifest,
   KnowledgeCollectionManifest,
   KnowledgeManifest,
+  KnowledgeGroupKind,
+  KnowledgeGroupRole,
+  KnowledgeGroup,
+  KnowledgeGroupDetail,
+  KnowledgeGroupContentResponse,
+  KnowledgeGroupManifest,
 } from "./knowledge.js";
 export type {
   CompanySop,
