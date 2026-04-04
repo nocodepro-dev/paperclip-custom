@@ -3,6 +3,9 @@ import type {
   KnowledgeCollectionDetail,
   KnowledgeEntry,
   KnowledgeRescanResult,
+  KnowledgeGroup,
+  KnowledgeGroupDetail,
+  KnowledgeGroupContentResponse,
 } from "@paperclipai/shared";
 import { api } from "./client";
 
@@ -45,4 +48,12 @@ export const knowledgeApi = {
       `/companies/${companyId}/knowledge/search?${params.toString()}`,
     );
   },
+
+  // Groups
+  listGroups: (collectionId: string) =>
+    api.get<KnowledgeGroup[]>(`/knowledge/collections/${collectionId}/groups`),
+  getGroup: (groupId: string) =>
+    api.get<KnowledgeGroupDetail>(`/knowledge/groups/${groupId}`),
+  getGroupContent: (groupId: string) =>
+    api.get<KnowledgeGroupContentResponse>(`/knowledge/groups/${groupId}/content`),
 };
