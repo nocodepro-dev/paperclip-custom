@@ -73,3 +73,19 @@ export const updateKnowledgeEntrySchema = z.object({
 export type CreateKnowledgeCollection = z.infer<typeof createKnowledgeCollectionSchema>;
 export type UpdateKnowledgeCollection = z.infer<typeof updateKnowledgeCollectionSchema>;
 export type UpdateKnowledgeEntry = z.infer<typeof updateKnowledgeEntrySchema>;
+
+export const knowledgeGroupKindSchema = z.enum(["flow", "design_system", "asset_bundle", "document_set"]);
+export const knowledgeGroupRoleSchema = z.enum(["primary", "asset"]);
+
+export const knowledgeGroupSchema = z.object({
+  id: z.string().uuid(),
+  collectionId: z.string().uuid(),
+  name: z.string().min(1),
+  description: z.string().nullable(),
+  relativePath: z.string().min(1),
+  kind: knowledgeGroupKindSchema,
+  primaryEntryId: z.string().uuid().nullable(),
+  entryCount: z.number().int().nonnegative(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
