@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "@/lib/router";
 import {
   ArrowLeft,
   BookOpen,
+  ChevronRight,
   Download,
   ExternalLink,
   RefreshCw,
@@ -20,7 +21,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { MarkdownBody } from "../components/MarkdownBody";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { KnowledgeEntry, KnowledgeEntryKind } from "@paperclipai/shared";
+import type { KnowledgeEntry, KnowledgeEntryKind, KnowledgeGroup } from "@paperclipai/shared";
 
 const ENTRY_KINDS: KnowledgeEntryKind[] = [
   "document",
@@ -73,6 +74,8 @@ export function KnowledgeDetail() {
   const [searchQuery, setSearchQuery] = useState("");
   const [kindFilter, setKindFilter] = useState<string | null>(null);
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grouped" | "flat">("grouped");
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
   const companyId = selectedCompanyId!;
 
@@ -143,6 +146,31 @@ export function KnowledgeDetail() {
     return counts;
   }, [collection?.entries]);
 
+  const groupedView = useMemo(() => {
+    if (!collection) return { groups: [], ungrouped: [] };
+    const groups: Array<KnowledgeGroup & { entries: KnowledgeEntry[] }> = [];
+    const ungrouped: KnowledgeEntry[] = [];
+
+    // Build groups from the collection response
+    if ((collection as any).groups) {
+      for (const group of (collection as any).groups as KnowledgeGroup[]) {
+        const groupEntries = (collection.entries ?? []).filter(
+          (e: any) => e.groupId === group.id,
+        );
+        groups.push({ ...group, entries: groupEntries });
+      }
+    }
+
+    // Ungrouped entries
+    for (const entry of collection.entries ?? []) {
+      if (!(entry as any).groupId) {
+        ungrouped.push(entry);
+      }
+    }
+
+    return { groups, ungrouped };
+  }, [collection]);
+
   if (isLoading) return <PageSkeleton />;
   if (error || !collection) {
     return (
@@ -207,76 +235,185 @@ export function KnowledgeDetail() {
 
         {/* Entries Tab */}
         <TabsContent value="entries" className="mt-4 space-y-3">
-          {/* Search + Kind Filters */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search entries..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-sm bg-transparent border border-border rounded-md placeholder:text-muted-foreground focus:outline-none focus-visible:ring-ring focus-visible:ring-[3px]"
-              />
-            </div>
-            <div className="flex items-center gap-1 flex-wrap">
-              <button
-                onClick={() => setKindFilter(null)}
-                className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                  !kindFilter
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/50 text-muted-foreground hover:bg-accent/50"
-                }`}
-              >
-                All
-              </button>
-              {ENTRY_KINDS.filter((k) => kindCounts[k]).map((kind) => (
+          {/* Search + Kind Filters + View Toggle */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search entries..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-transparent border border-border rounded-md placeholder:text-muted-foreground focus:outline-none focus-visible:ring-ring focus-visible:ring-[3px]"
+                />
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
                 <button
-                  key={kind}
-                  onClick={() => setKindFilter(kindFilter === kind ? null : kind)}
+                  onClick={() => setKindFilter(null)}
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                    kindFilter === kind
+                    !kindFilter
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted/50 text-muted-foreground hover:bg-accent/50"
                   }`}
                 >
-                  {kindLabel(kind)} ({kindCounts[kind]})
+                  All
                 </button>
-              ))}
+                {ENTRY_KINDS.filter((k) => kindCounts[k]).map((kind) => (
+                  <button
+                    key={kind}
+                    onClick={() => setKindFilter(kindFilter === kind ? null : kind)}
+                    className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                      kindFilter === kind
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/50 text-muted-foreground hover:bg-accent/50"
+                    }`}
+                  >
+                    {kindLabel(kind)} ({kindCounts[kind]})
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setViewMode("grouped")}
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                  viewMode === "grouped"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-accent/50"
+                }`}
+              >
+                Grouped
+              </button>
+              <button
+                onClick={() => setViewMode("flat")}
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                  viewMode === "flat"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-accent/50"
+                }`}
+              >
+                Flat
+              </button>
             </div>
           </div>
 
-          {/* Entry Table */}
-          {filteredEntries.length ? (
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-accent/20 text-left">
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Path</th>
-                    <th className="px-3 py-2 font-medium">Kind</th>
-                    <th className="px-3 py-2 font-medium">Type</th>
-                    <th className="px-3 py-2 font-medium text-right">Size</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredEntries.map((entry) => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      expanded={expandedEntryId === entry.id}
-                      onToggle={() =>
-                        setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)
-                      }
+          {/* Entry Table — grouped or flat */}
+          {viewMode === "grouped" && groupedView.groups.length > 0 ? (
+            <div className="space-y-2">
+              {groupedView.groups.map((group) => (
+                <div key={group.id} className="border border-border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() =>
+                      setExpandedGroupId(expandedGroupId === group.id ? null : group.id)
+                    }
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/30 transition-colors"
+                  >
+                    <ChevronRight
+                      className={`h-4 w-4 text-muted-foreground transition-transform ${
+                        expandedGroupId === group.id ? "rotate-90" : ""
+                      }`}
                     />
-                  ))}
-                </tbody>
-              </table>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium truncate">{group.name}</span>
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted/50 text-muted-foreground">
+                          {group.kind.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      {group.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {group.description}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">{group.entries.length} files</span>
+                  </button>
+                  {expandedGroupId === group.id && (
+                    <div className="border-t border-border">
+                      <table className="w-full text-xs">
+                        <tbody>
+                          {group.entries
+                            .sort((a, b) => {
+                              if ((a as any).groupRole === "primary") return -1;
+                              if ((b as any).groupRole === "primary") return 1;
+                              return a.name.localeCompare(b.name);
+                            })
+                            .map((entry) => (
+                              <EntryRow
+                                key={entry.id}
+                                entry={entry}
+                                expanded={expandedEntryId === entry.id}
+                                onToggle={() =>
+                                  setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)
+                                }
+                              />
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {groupedView.ungrouped.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-2 px-1">
+                    Other files ({groupedView.ungrouped.length})
+                  </h3>
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {groupedView.ungrouped.map((entry) => (
+                          <EntryRow
+                            key={entry.id}
+                            entry={entry}
+                            expanded={expandedEntryId === entry.id}
+                            onToggle={() =>
+                              setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)
+                            }
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground py-4">
-              {searchQuery || kindFilter ? "No matching entries." : "No entries in this collection."}
-            </p>
+            <>
+              {filteredEntries.length ? (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-accent/20 text-left">
+                        <th className="px-3 py-2 font-medium">Name</th>
+                        <th className="px-3 py-2 font-medium">Path</th>
+                        <th className="px-3 py-2 font-medium">Kind</th>
+                        <th className="px-3 py-2 font-medium">Type</th>
+                        <th className="px-3 py-2 font-medium text-right">Size</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredEntries.map((entry) => (
+                        <EntryRow
+                          key={entry.id}
+                          entry={entry}
+                          expanded={expandedEntryId === entry.id}
+                          onToggle={() =>
+                            setExpandedEntryId(expandedEntryId === entry.id ? null : entry.id)
+                          }
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4">
+                  {searchQuery || kindFilter ? "No matching entries." : "No entries in this collection."}
+                </p>
+              )}
+            </>
           )}
         </TabsContent>
 
