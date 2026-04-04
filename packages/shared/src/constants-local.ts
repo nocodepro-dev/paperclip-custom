@@ -25,3 +25,13 @@ export type SopSourceType = (typeof SOP_SOURCE_TYPES)[number];
 
 export const SOP_ASSET_KINDS = ["screenshot", "template", "example", "reference"] as const;
 export type SopAssetKind = (typeof SOP_ASSET_KINDS)[number];
+
+// ---------------------------------------------------------------------------
+// Knowledge Groups
+// ---------------------------------------------------------------------------
+
+export const KNOWLEDGE_GROUP_KINDS = ["flow", "design_system", "asset_bundle", "document_set"] as const;
+export type KnowledgeGroupKind = (typeof KNOWLEDGE_GROUP_KINDS)[number];
+
+export const KNOWLEDGE_GROUP_ROLES = ["primary", "asset"] as const;
+export type KnowledgeGroupRole = (typeof KNOWLEDGE_GROUP_ROLES)[number];
