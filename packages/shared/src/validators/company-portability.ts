@@ -7,6 +7,7 @@ export const portabilityIncludeSchema = z
     projects: z.boolean().optional(),
     issues: z.boolean().optional(),
     skills: z.boolean().optional(),
+    pipelines: z.boolean().optional(),
   })
   .partial();
 
@@ -143,6 +144,37 @@ export const portabilityIssueManifestEntrySchema = z.object({
   metadata: z.record(z.unknown()).nullable(),
 });
 
+export const portabilityPipelineStageEntrySchema = z.object({
+  title: z.string().min(1),
+  description: z.string().nullable(),
+  stageOrder: z.number().int(),
+  parallelGroup: z.string().nullable(),
+  loopConfig: z
+    .object({
+      sourceStageId: z.string(),
+      fieldPath: z.string(),
+    })
+    .nullable(),
+  assigneeAgentSlug: z.string().nullable(),
+  requiredCapability: z.string().nullable(),
+  priority: z.string(),
+  requiresApproval: z.boolean(),
+  timeoutMinutes: z.number().int().nullable(),
+  suggestedSkillKey: z.string().nullable(),
+  stageConfig: z.record(z.unknown()).nullable(),
+});
+
+export const portabilityPipelineManifestEntrySchema = z.object({
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().nullable(),
+  projectSlug: z.string().nullable(),
+  goalSlug: z.string().nullable(),
+  status: z.string(),
+  metadata: z.record(z.unknown()).nullable(),
+  stages: z.array(portabilityPipelineStageEntrySchema).default([]),
+});
+
 export const portabilityManifestSchema = z.object({
   schemaVersion: z.number().int().positive(),
   generatedAt: z.string().datetime(),
@@ -158,6 +190,7 @@ export const portabilityManifestSchema = z.object({
     projects: z.boolean(),
     issues: z.boolean(),
     skills: z.boolean(),
+    pipelines: z.boolean(),
   }),
   company: portabilityCompanyManifestEntrySchema.nullable(),
   sidebar: portabilitySidebarOrderSchema.nullable(),
@@ -165,6 +198,7 @@ export const portabilityManifestSchema = z.object({
   skills: z.array(portabilitySkillManifestEntrySchema).default([]),
   projects: z.array(portabilityProjectManifestEntrySchema).default([]),
   issues: z.array(portabilityIssueManifestEntrySchema).default([]),
+  pipelines: z.array(portabilityPipelineManifestEntrySchema).default([]),
   envInputs: z.array(portabilityEnvInputSchema).default([]),
 });
 

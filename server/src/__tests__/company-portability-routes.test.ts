@@ -98,7 +98,7 @@ describe("company portability routes", () => {
     });
     mockCompanyPortabilityService.previewExport.mockResolvedValue({
       rootPath: "paperclip",
-      manifest: { agents: [], skills: [], projects: [], issues: [], envInputs: [], includes: { company: true, agents: true, projects: true, issues: false, skills: false }, company: null, schemaVersion: 1, generatedAt: new Date().toISOString(), source: null },
+      manifest: { agents: [], skills: [], projects: [], issues: [], pipelines: [], envInputs: [], includes: { company: true, agents: true, projects: true, issues: false, skills: false, pipelines: false }, company: null, sidebar: null, schemaVersion: 1, generatedAt: new Date().toISOString(), source: null },
       files: {},
       fileInventory: [],
       counts: { files: 0, agents: 0, skills: 0, projects: 0, issues: 0 },

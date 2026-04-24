@@ -119,6 +119,7 @@ describe("renderCompanyImportPreview", () => {
         projects: true,
         issues: true,
         skills: true,
+        pipelines: false,
       },
       targetCompanyId: "company-123",
       targetCompanyName: "Imported Co",
@@ -155,6 +156,7 @@ describe("renderCompanyImportPreview", () => {
           projects: true,
           issues: true,
           skills: true,
+          pipelines: false,
         },
         company: {
           path: "COMPANY.md",
@@ -241,6 +243,7 @@ describe("renderCompanyImportPreview", () => {
             metadata: null,
           },
         ],
+        pipelines: [],
         envInputs: [
           {
             key: "OPENAI_API_KEY",
@@ -339,6 +342,7 @@ describe("import selection catalog", () => {
         projects: true,
         issues: true,
         skills: true,
+        pipelines: false,
       },
       targetCompanyId: "company-123",
       targetCompanyName: "Imported Co",
@@ -363,6 +367,7 @@ describe("import selection catalog", () => {
           projects: true,
           issues: true,
           skills: true,
+          pipelines: false,
         },
         company: {
           path: "COMPANY.md",
@@ -449,6 +454,7 @@ describe("import selection catalog", () => {
             metadata: null,
           },
         ],
+        pipelines: [],
         envInputs: [],
       },
       files: {
@@ -507,6 +513,7 @@ describe("default adapter overrides", () => {
         projects: false,
         issues: false,
         skills: false,
+        pipelines: false,
       },
       targetCompanyId: null,
       targetCompanyName: null,
@@ -528,6 +535,7 @@ describe("default adapter overrides", () => {
           projects: false,
           issues: false,
           skills: false,
+          pipelines: false,
         },
         company: null,
         sidebar: null,
@@ -570,6 +578,7 @@ describe("default adapter overrides", () => {
         skills: [],
         projects: [],
         issues: [],
+        pipelines: [],
         envInputs: [],
       },
       files: {},

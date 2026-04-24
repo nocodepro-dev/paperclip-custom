@@ -63,6 +63,7 @@ const DEFAULT_EXPORT_INCLUDE: CompanyPortabilityInclude = {
   projects: false,
   issues: false,
   skills: false,
+  pipelines: false,
 };
 
 const DEFAULT_IMPORT_INCLUDE: CompanyPortabilityInclude = {
@@ -71,6 +72,7 @@ const DEFAULT_IMPORT_INCLUDE: CompanyPortabilityInclude = {
   projects: true,
   issues: true,
   skills: true,
+  pipelines: true,
 };
 
 const IMPORT_INCLUDE_OPTIONS: Array<{
@@ -83,6 +85,7 @@ const IMPORT_INCLUDE_OPTIONS: Array<{
   { value: "issues", label: "Tasks", hint: "tasks and recurring routines" },
   { value: "agents", label: "Agents", hint: "agent records and org structure" },
   { value: "skills", label: "Skills", hint: "company skill packages and references" },
+  { value: "pipelines", label: "Pipelines", hint: "multi-stage pipeline templates" },
 ];
 
 const IMPORT_PREVIEW_SAMPLE_LIMIT = 6;
@@ -144,9 +147,10 @@ function parseInclude(
     projects: values.includes("projects"),
     issues: values.includes("issues") || values.includes("tasks"),
     skills: values.includes("skills"),
+    pipelines: values.includes("pipelines"),
   };
-  if (!include.company && !include.agents && !include.projects && !include.issues && !include.skills) {
-    throw new Error("Invalid --include value. Use one or more of: company,agents,projects,issues,tasks,skills");
+  if (!include.company && !include.agents && !include.projects && !include.issues && !include.skills && !include.pipelines) {
+    throw new Error("Invalid --include value. Use one or more of: company,agents,projects,issues,tasks,skills,pipelines");
   }
   return include;
 }
@@ -1099,7 +1103,7 @@ export function registerCompanyCommands(program: Command): void {
       .description("Export a company into a portable markdown package")
       .argument("<companyId>", "Company ID")
       .requiredOption("--out <path>", "Output directory")
-      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills", "company,agents")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills,pipelines", "company,agents")
       .option("--skills <values>", "Comma-separated skill slugs/keys to export")
       .option("--projects <values>", "Comma-separated project shortnames/ids to export")
       .option("--issues <values>", "Comma-separated issue identifiers/ids to export")
@@ -1152,7 +1156,7 @@ export function registerCompanyCommands(program: Command): void {
       .command("import")
       .description("Import a portable markdown company package from local path, URL, or GitHub")
       .argument("<fromPathOrUrl>", "Source path or URL")
-      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills,pipelines")
       .option("--target <mode>", "Target mode: new | existing")
       .option("-C, --company-id <id>", "Existing target company ID")
       .option("--new-company-name <name>", "Name override for --target new")

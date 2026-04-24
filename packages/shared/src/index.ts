@@ -261,6 +261,8 @@ export type {
   CompanyPortabilityIssueRoutineTriggerManifestEntry,
   CompanyPortabilityIssueRoutineManifestEntry,
   CompanyPortabilityIssueManifestEntry,
+  CompanyPortabilityPipelineStageEntry,
+  CompanyPortabilityPipelineManifestEntry,
   CompanyPortabilityManifest,
   CompanyPortabilityExportResult,
   CompanyPortabilityExportPreviewFile,

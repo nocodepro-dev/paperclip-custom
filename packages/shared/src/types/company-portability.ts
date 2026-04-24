@@ -4,6 +4,7 @@ export interface CompanyPortabilityInclude {
   projects: boolean;
   issues: boolean;
   skills: boolean;
+  pipelines: boolean;
 }
 
 export interface CompanyPortabilityEnvInput {
@@ -154,6 +155,7 @@ export interface CompanyPortabilityManifest {
   skills: CompanyPortabilitySkillManifestEntry[];
   projects: CompanyPortabilityProjectManifestEntry[];
   issues: CompanyPortabilityIssueManifestEntry[];
+  pipelines: CompanyPortabilityPipelineManifestEntry[];
   envInputs: CompanyPortabilityEnvInput[];
 }
 
@@ -167,7 +169,7 @@ export interface CompanyPortabilityExportResult {
 
 export interface CompanyPortabilityExportPreviewFile {
   path: string;
-  kind: "company" | "agent" | "skill" | "project" | "issue" | "extension" | "readme" | "other";
+  kind: "company" | "agent" | "skill" | "project" | "issue" | "pipeline" | "extension" | "readme" | "other";
 }
 
 export interface CompanyPortabilityExportPreviewResult {
@@ -306,4 +308,30 @@ export interface CompanyPortabilityExportRequest {
   selectedFiles?: string[];
   expandReferencedSkills?: boolean;
   sidebarOrder?: Partial<CompanyPortabilitySidebarOrder>;
+}
+
+export interface CompanyPortabilityPipelineStageEntry {
+  title: string;
+  description: string | null;
+  stageOrder: number;
+  parallelGroup: string | null;
+  loopConfig: { sourceStageId: string; fieldPath: string } | null;
+  assigneeAgentSlug: string | null;
+  requiredCapability: string | null;
+  priority: string;
+  requiresApproval: boolean;
+  timeoutMinutes: number | null;
+  suggestedSkillKey: string | null;
+  stageConfig: Record<string, unknown> | null;
+}
+
+export interface CompanyPortabilityPipelineManifestEntry {
+  slug: string;
+  title: string;
+  description: string | null;
+  projectSlug: string | null;
+  goalSlug: string | null;
+  status: string;
+  metadata: Record<string, unknown> | null;
+  stages: CompanyPortabilityPipelineStageEntry[];
 }

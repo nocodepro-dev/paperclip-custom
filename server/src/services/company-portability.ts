@@ -4,6 +4,8 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { Db } from "@paperclipai/db";
+import { goals as goalsSchema, pipelineStages, pipelineTemplates } from "@paperclipai/db";
+import { eq } from "drizzle-orm";
 import type {
   CompanyPortabilityAgentManifestEntry,
   CompanyPortabilityCollisionStrategy,
@@ -16,6 +18,8 @@ import type {
   CompanyPortabilityImportResult,
   CompanyPortabilityInclude,
   CompanyPortabilityManifest,
+  CompanyPortabilityPipelineManifestEntry,
+  CompanyPortabilityPipelineStageEntry,
   CompanyPortabilityPreview,
   CompanyPortabilityPreviewAgentPlan,
   CompanyPortabilityPreviewResult,
@@ -110,6 +114,7 @@ const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
   projects: false,
   issues: false,
   skills: false,
+  pipelines: false,
 };
 
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
@@ -134,6 +139,7 @@ function classifyPortableFileKind(pathValue: string): CompanyPortabilityExportPr
   if (normalized.startsWith("skills/")) return "skill";
   if (normalized.startsWith("projects/")) return "project";
   if (normalized.startsWith("tasks/")) return "issue";
+  if (normalized.startsWith("pipelines/")) return "pipeline";
   return "other";
 }
 
@@ -1184,6 +1190,7 @@ function normalizeInclude(input?: Partial<CompanyPortabilityInclude>): CompanyPo
     projects: input?.projects ?? DEFAULT_INCLUDE.projects,
     issues: input?.issues ?? DEFAULT_INCLUDE.issues,
     skills: input?.skills ?? DEFAULT_INCLUDE.skills,
+    pipelines: input?.pipelines ?? DEFAULT_INCLUDE.pipelines,
   };
 }
 
@@ -1842,6 +1849,7 @@ function applySelectedFilesToSource(source: ResolvedSource, selectedFiles?: stri
     projects: filtered.manifest.projects.length > 0,
     issues: filtered.manifest.issues.length > 0,
     skills: filtered.manifest.skills.length > 0,
+    pipelines: filtered.manifest.pipelines.length > 0,
   };
 
   return filtered;
@@ -2282,10 +2290,17 @@ function buildManifestFromPackageFiles(
   const discoveredSkillPaths = Object.keys(normalizedFiles).filter(
     (entry) => entry.endsWith("/SKILL.md") || entry === "SKILL.md",
   );
+  const referencedPipelinePaths = includeEntries
+    .map((entry) => resolvePortablePath(resolvedCompanyPath, entry.path))
+    .filter((entry) => entry.endsWith("/PIPELINE.md") || entry === "PIPELINE.md");
+  const discoveredPipelinePaths = Object.keys(normalizedFiles).filter(
+    (entry) => entry.endsWith("/PIPELINE.md") || entry === "PIPELINE.md",
+  );
   const agentPaths = Array.from(new Set([...referencedAgentPaths, ...discoveredAgentPaths])).sort();
   const projectPaths = Array.from(new Set([...referencedProjectPaths, ...discoveredProjectPaths])).sort();
   const taskPaths = Array.from(new Set([...referencedTaskPaths, ...discoveredTaskPaths])).sort();
   const skillPaths = Array.from(new Set([...referencedSkillPaths, ...discoveredSkillPaths])).sort();
+  const pipelinePaths = Array.from(new Set([...referencedPipelinePaths, ...discoveredPipelinePaths])).sort();
 
   const manifest: CompanyPortabilityManifest = {
     schemaVersion: 4,
@@ -2297,6 +2312,7 @@ function buildManifestFromPackageFiles(
       projects: projectPaths.length > 0,
       issues: taskPaths.length > 0,
       skills: skillPaths.length > 0,
+      pipelines: pipelinePaths.length > 0,
     },
     company: {
       path: resolvedCompanyPath,
@@ -2314,6 +2330,7 @@ function buildManifestFromPackageFiles(
     skills: [],
     projects: [],
     issues: [],
+    pipelines: [],
     envInputs: [],
   };
 
@@ -2545,6 +2562,64 @@ function buildManifestFromPackageFiles(
     });
     if (frontmatter.kind && frontmatter.kind !== "task") {
       warnings.push(`Task markdown ${taskPath} does not declare kind: task in frontmatter.`);
+    }
+  }
+
+  for (const pipelinePath of pipelinePaths) {
+    const markdownRaw = readPortableTextFile(normalizedFiles, pipelinePath);
+    if (typeof markdownRaw !== "string") {
+      warnings.push(`Referenced pipeline file is missing from package: ${pipelinePath}`);
+      continue;
+    }
+    const pipelineDoc = parseFrontmatterMarkdown(markdownRaw);
+    const frontmatter = pipelineDoc.frontmatter;
+    const fallbackSlug = normalizeAgentUrlKey(path.posix.basename(path.posix.dirname(pipelinePath))) ?? "pipeline";
+    const slug = asString(frontmatter.slug) ?? fallbackSlug;
+    const rawStages = Array.isArray(frontmatter.stages) ? frontmatter.stages : [];
+    const stages: CompanyPortabilityPipelineStageEntry[] = [];
+    rawStages.forEach((stage, index) => {
+      if (!isPlainRecord(stage)) return;
+      const loop = isPlainRecord(stage.loopConfig) ? stage.loopConfig : null;
+      const loopConfig = loop
+        && typeof loop.sourceStageId === "string"
+        && typeof loop.fieldPath === "string"
+        ? { sourceStageId: loop.sourceStageId, fieldPath: loop.fieldPath }
+        : null;
+      const stageOrderValue = stage.stageOrder;
+      const stageOrder = typeof stageOrderValue === "number" && Number.isFinite(stageOrderValue)
+        ? Math.floor(stageOrderValue)
+        : index;
+      const timeoutValue = stage.timeoutMinutes;
+      const timeoutMinutes = typeof timeoutValue === "number" && Number.isFinite(timeoutValue)
+        ? Math.floor(timeoutValue)
+        : null;
+      stages.push({
+        title: asString(stage.title) ?? `Stage ${stageOrder + 1}`,
+        description: asString(stage.description),
+        stageOrder,
+        parallelGroup: asString(stage.parallelGroup),
+        loopConfig,
+        assigneeAgentSlug: asString(stage.assigneeAgentSlug),
+        requiredCapability: asString(stage.requiredCapability),
+        priority: asString(stage.priority) ?? "medium",
+        requiresApproval: typeof stage.requiresApproval === "boolean" ? stage.requiresApproval : false,
+        timeoutMinutes,
+        suggestedSkillKey: asString(stage.suggestedSkillKey),
+        stageConfig: isPlainRecord(stage.stageConfig) ? stage.stageConfig : null,
+      });
+    });
+    manifest.pipelines.push({
+      slug,
+      title: asString(frontmatter.name) ?? asString(frontmatter.title) ?? slug,
+      description: asString(frontmatter.description),
+      projectSlug: asString(frontmatter.projectSlug) ?? asString(frontmatter.project),
+      goalSlug: asString(frontmatter.goalSlug) ?? asString(frontmatter.goal),
+      status: asString(frontmatter.status) ?? "active",
+      metadata: isPlainRecord(frontmatter.metadata) ? frontmatter.metadata : null,
+      stages,
+    });
+    if (frontmatter.kind && frontmatter.kind !== "pipeline") {
+      warnings.push(`Pipeline markdown ${pipelinePath} does not declare kind: pipeline in frontmatter.`);
     }
   }
 
@@ -3205,6 +3280,97 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       paperclipRoutinesOut[taskSlug] = isPlainRecord(extension) ? extension : {};
     }
 
+    // ── Pipelines ──────────────────────────────────────────────────────
+    const pipelineManifestEntries: CompanyPortabilityPipelineManifestEntry[] = [];
+    if (include.pipelines) {
+      const skillIdToKey = new Map<string, string>();
+      for (const skill of companySkillRows) {
+        skillIdToKey.set(skill.id, skill.key);
+      }
+
+      const goalRows = await db
+        .select()
+        .from(goalsSchema)
+        .where(eq(goalsSchema.companyId, companyId));
+      const goalIdToSlug = new Map<string, string>();
+      const usedGoalSlugs = new Set<string>();
+      for (const goal of goalRows) {
+        const baseSlug = normalizeAgentUrlKey(goal.title) ?? "goal";
+        goalIdToSlug.set(goal.id, uniqueSlug(baseSlug, usedGoalSlugs));
+      }
+
+      const pipelineRows = await db
+        .select()
+        .from(pipelineTemplates)
+        .where(eq(pipelineTemplates.companyId, companyId));
+
+      const usedPipelineSlugs = new Set<string>();
+      for (const pipeline of pipelineRows) {
+        const stages = await db
+          .select()
+          .from(pipelineStages)
+          .where(eq(pipelineStages.pipelineTemplateId, pipeline.id))
+          .orderBy(pipelineStages.stageOrder);
+
+        const baseSlug = normalizeAgentUrlKey(pipeline.title) ?? "pipeline";
+        const slug = uniqueSlug(baseSlug, usedPipelineSlugs);
+        const projectSlug = pipeline.projectId
+          ? projectSlugById.get(pipeline.projectId) ?? null
+          : null;
+        const goalSlug = pipeline.goalId
+          ? goalIdToSlug.get(pipeline.goalId) ?? null
+          : null;
+
+        const stageEntries: CompanyPortabilityPipelineStageEntry[] = stages.map((stage) => ({
+          title: stage.title,
+          description: stage.description,
+          stageOrder: stage.stageOrder,
+          parallelGroup: stage.parallelGroup,
+          loopConfig: stage.loopConfig ?? null,
+          assigneeAgentSlug: stage.assigneeAgentId
+            ? idToSlug.get(stage.assigneeAgentId) ?? null
+            : null,
+          requiredCapability: stage.requiredCapability,
+          priority: stage.priority,
+          requiresApproval: stage.requiresApproval,
+          timeoutMinutes: stage.timeoutMinutes,
+          suggestedSkillKey: stage.suggestedSkillId
+            ? skillIdToKey.get(stage.suggestedSkillId) ?? null
+            : null,
+          stageConfig: stage.stageConfig ?? null,
+        }));
+
+        const pipelineEntry: CompanyPortabilityPipelineManifestEntry = {
+          slug,
+          title: pipeline.title,
+          description: pipeline.description,
+          projectSlug,
+          goalSlug,
+          status: pipeline.status,
+          metadata: pipeline.metadata ?? null,
+          stages: stageEntries,
+        };
+
+        pipelineManifestEntries.push(pipelineEntry);
+
+        const pipelinePath = `pipelines/${slug}/PIPELINE.md`;
+        files[pipelinePath] = buildMarkdown(
+          {
+            kind: "pipeline",
+            slug,
+            name: pipeline.title,
+            description: pipeline.description ?? null,
+            status: pipeline.status,
+            projectSlug,
+            goalSlug,
+            stages: stageEntries,
+            metadata: pipeline.metadata ?? null,
+          },
+          pipeline.description ?? "",
+        );
+      }
+    }
+
     const paperclipExtensionPath = ".paperclip.yaml";
     const paperclipAgents = Object.fromEntries(
       Object.entries(paperclipAgentsOut).filter(([, value]) => isPlainRecord(value) && Object.keys(value).length > 0),
@@ -3248,6 +3414,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       projects: resolved.manifest.projects.length > 0,
       issues: resolved.manifest.issues.length > 0,
       skills: resolved.manifest.skills.length > 0,
+      pipelines: resolved.manifest.pipelines.length > 0,
     };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
@@ -3282,6 +3449,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       projects: resolved.manifest.projects.length > 0,
       issues: resolved.manifest.issues.length > 0,
       skills: resolved.manifest.skills.length > 0,
+      pipelines: resolved.manifest.pipelines.length > 0,
     };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
@@ -3345,6 +3513,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       projects: requestedInclude.projects && manifest.projects.length > 0,
       issues: requestedInclude.issues && manifest.issues.length > 0,
       skills: requestedInclude.skills && manifest.skills.length > 0,
+      pipelines: requestedInclude.pipelines && manifest.pipelines.length > 0,
     };
     const collisionStrategy = input.collisionStrategy ?? DEFAULT_COLLISION_STRATEGY;
     if (mode === "agent_safe" && collisionStrategy === "replace") {
@@ -4222,6 +4391,162 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
           executionWorkspaceSettings: manifestIssue.executionWorkspaceSettings,
           labelIds: [],
         });
+      }
+    }
+
+    // ── Pipelines ──────────────────────────────────────────────────────
+    if (include.pipelines && sourceManifest.pipelines.length > 0) {
+      // Build lookup maps for linking pipeline references.
+      const agentSlugToId = new Map<string, string>();
+      for (const [slug, id] of importedSlugToAgentId.entries()) agentSlugToId.set(slug, id);
+      for (const [slug, id] of existingSlugToAgentId.entries()) {
+        if (!agentSlugToId.has(slug)) agentSlugToId.set(slug, id);
+      }
+
+      const projectSlugToId = new Map<string, string>();
+      for (const [slug, id] of importedSlugToProjectId.entries()) projectSlugToId.set(slug, id);
+      for (const [slug, id] of existingProjectSlugToId.entries()) {
+        if (!projectSlugToId.has(slug)) projectSlugToId.set(slug, id);
+      }
+
+      const skillKeyToId = new Map<string, string>();
+      const allExistingSkills = await companySkills.listFull(targetCompany.id);
+      for (const skill of allExistingSkills) {
+        skillKeyToId.set(skill.key, skill.id);
+      }
+
+      const goalRows = await db
+        .select()
+        .from(goalsSchema)
+        .where(eq(goalsSchema.companyId, targetCompany.id));
+      const goalSlugToId = new Map<string, string>();
+      const usedGoalSlugsForMap = new Set<string>();
+      for (const goal of goalRows) {
+        const baseSlug = normalizeAgentUrlKey(goal.title) ?? "goal";
+        let candidate = baseSlug;
+        let idx = 2;
+        while (usedGoalSlugsForMap.has(candidate)) {
+          candidate = `${baseSlug}-${idx}`;
+          idx += 1;
+        }
+        usedGoalSlugsForMap.add(candidate);
+        goalSlugToId.set(candidate, goal.id);
+      }
+
+      // Collision planning + execution
+      const existingPipelineRows = await db
+        .select()
+        .from(pipelineTemplates)
+        .where(eq(pipelineTemplates.companyId, targetCompany.id));
+      const existingPipelineByTitle = new Map<string, typeof existingPipelineRows[number]>();
+      for (const existing of existingPipelineRows) {
+        existingPipelineByTitle.set(existing.title.toLowerCase(), existing);
+      }
+      const existingPipelineTitles = new Set(existingPipelineRows.map((p) => p.title));
+
+      for (const manifestPipeline of sourceManifest.pipelines) {
+        const existing = existingPipelineByTitle.get(manifestPipeline.title.toLowerCase()) ?? null;
+        let action: "create" | "update" | "skip" = "create";
+        let existingId: string | null = null;
+        let effectiveTitle = manifestPipeline.title;
+
+        if (existing) {
+          if (plan.collisionStrategy === "skip") {
+            action = "skip";
+            existingId = existing.id;
+          } else if (plan.collisionStrategy === "replace") {
+            action = "update";
+            existingId = existing.id;
+          } else {
+            // rename
+            const renamedSet = new Set(existingPipelineTitles);
+            let idx = 2;
+            let candidate = `${manifestPipeline.title} ${idx}`;
+            while (renamedSet.has(candidate)) {
+              idx += 1;
+              candidate = `${manifestPipeline.title} ${idx}`;
+            }
+            effectiveTitle = candidate;
+            existingPipelineTitles.add(candidate);
+            action = "create";
+          }
+        }
+
+        if (action === "skip") {
+          warnings.push(`Skipped pipeline "${manifestPipeline.title}"; existing pipeline was kept.`);
+          continue;
+        }
+
+        const projectId = manifestPipeline.projectSlug
+          ? projectSlugToId.get(manifestPipeline.projectSlug) ?? null
+          : null;
+        const goalId = manifestPipeline.goalSlug
+          ? goalSlugToId.get(manifestPipeline.goalSlug) ?? null
+          : null;
+
+        let pipelineId: string;
+        if (action === "update" && existingId) {
+          pipelineId = existingId;
+          await db
+            .update(pipelineTemplates)
+            .set({
+              title: effectiveTitle,
+              description: manifestPipeline.description,
+              projectId,
+              goalId,
+              status: manifestPipeline.status,
+              metadata: manifestPipeline.metadata ?? undefined,
+              updatedAt: new Date(),
+            })
+            .where(eq(pipelineTemplates.id, pipelineId));
+          await db
+            .delete(pipelineStages)
+            .where(eq(pipelineStages.pipelineTemplateId, pipelineId));
+        } else {
+          const [created] = await db
+            .insert(pipelineTemplates)
+            .values({
+              companyId: targetCompany.id,
+              title: effectiveTitle,
+              description: manifestPipeline.description,
+              projectId,
+              goalId,
+              status: manifestPipeline.status,
+              metadata: manifestPipeline.metadata ?? undefined,
+              createdByUserId: actorUserId ?? null,
+            })
+            .returning();
+          if (!created) {
+            warnings.push(`Failed to create pipeline "${manifestPipeline.title}".`);
+            continue;
+          }
+          pipelineId = created.id;
+        }
+
+        for (const stage of manifestPipeline.stages) {
+          const assigneeAgentId = stage.assigneeAgentSlug
+            ? agentSlugToId.get(stage.assigneeAgentSlug) ?? null
+            : null;
+          const suggestedSkillId = stage.suggestedSkillKey
+            ? skillKeyToId.get(stage.suggestedSkillKey) ?? null
+            : null;
+          await db.insert(pipelineStages).values({
+            companyId: targetCompany.id,
+            pipelineTemplateId: pipelineId,
+            title: stage.title,
+            description: stage.description,
+            stageOrder: stage.stageOrder,
+            parallelGroup: stage.parallelGroup,
+            loopConfig: stage.loopConfig,
+            assigneeAgentId,
+            requiredCapability: stage.requiredCapability,
+            priority: stage.priority,
+            requiresApproval: stage.requiresApproval,
+            timeoutMinutes: stage.timeoutMinutes,
+            suggestedSkillId,
+            stageConfig: stage.stageConfig ?? undefined,
+          });
+        }
       }
     }
 
