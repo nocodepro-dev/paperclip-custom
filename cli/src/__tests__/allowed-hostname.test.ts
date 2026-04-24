@@ -59,6 +59,11 @@ function writeBaseConfig(configPath: string) {
       strictMode: false,
       localEncrypted: { keyFilePath: "/tmp/paperclip-secrets/master.key" },
     },
+    workspace: {
+      localPath: "/tmp/paperclip-workspace",
+      autoSync: false,
+      branch: "main",
+    },
   };
   fs.writeFileSync(configPath, JSON.stringify(base, null, 2));
 }

@@ -95,6 +95,19 @@ export const secretsConfigSchema = z.object({
   }),
 });
 
+export const workspaceConfigSchema = z.object({
+  gitRemote: z.string().optional(),
+  localPath: z.string().default("~/.paperclip/instances/default/workspace"),
+  autoSync: z.boolean().default(false),
+  branch: z.string().default("main"),
+}).default({
+  localPath: "~/.paperclip/instances/default/workspace",
+  autoSync: false,
+  branch: "main",
+});
+
+export type WorkspaceConfig = z.infer<typeof workspaceConfigSchema>;
+
 export const paperclipConfigSchema = z
   .object({
     $meta: configMetaSchema,
@@ -125,6 +138,7 @@ export const paperclipConfigSchema = z
         keyFilePath: "~/.paperclip/instances/default/secrets/master.key",
       },
     }),
+    workspace: workspaceConfigSchema,
   })
   .superRefine((value, ctx) => {
     if (value.server.deploymentMode === "local_trusted") {

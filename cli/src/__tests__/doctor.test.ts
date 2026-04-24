@@ -65,6 +65,11 @@ function createTempConfig(): string {
         keyFilePath: path.join(runtimeRoot, "secrets", "master.key"),
       },
     },
+    workspace: {
+      localPath: path.join(runtimeRoot, "workspace"),
+      autoSync: false,
+      branch: "main",
+    },
   };
 
   writeConfig(config, configPath);

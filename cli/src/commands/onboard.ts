@@ -419,6 +419,11 @@ export async function onboard(opts: OnboardOptions): Promise<void> {
     auth,
     storage,
     secrets,
+    workspace: {
+      localPath: "~/.paperclip/instances/default/workspace",
+      autoSync: false,
+      branch: "main",
+    },
   };
 
   const keyResult = ensureLocalSecretsKeyFile(config, configPath);

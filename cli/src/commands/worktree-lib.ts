@@ -244,6 +244,12 @@ export function buildWorktreeConfig(input: {
         keyFilePath: paths.secretsKeyFilePath,
       },
     },
+    workspace: {
+      gitRemote: source?.workspace.gitRemote,
+      localPath: source?.workspace.localPath ?? "~/.paperclip/instances/default/workspace",
+      autoSync: source?.workspace.autoSync ?? false,
+      branch: source?.workspace.branch ?? "main",
+    },
   };
 }
 

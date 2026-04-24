@@ -94,6 +94,11 @@ function buildSourceConfig(): PaperclipConfig {
         keyFilePath: "/tmp/main/secrets/master.key",
       },
     },
+    workspace: {
+      localPath: "/tmp/main/workspace",
+      autoSync: false,
+      branch: "main",
+    },
   };
 }
 

@@ -65,6 +65,11 @@ function defaultConfig(): PaperclipConfig {
     },
     storage: defaultStorageConfig(),
     secrets: defaultSecretsConfig(),
+    workspace: {
+      localPath: "~/.paperclip/instances/default/workspace",
+      autoSync: false,
+      branch: "main",
+    },
   };
 }
 
