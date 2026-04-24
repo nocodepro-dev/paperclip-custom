@@ -12,10 +12,12 @@ import { knowledgeRoutes } from "./routes/knowledge.js";
 import { sopRoutes } from "./routes/sops.js";
 import { pipelineRoutes } from "./routes/pipelines.js";
 import { toolRoutes } from "./routes/tools.js";
+import { workspaceRoutes } from "./routes/workspace.js";
 
 export function registerLocalRoutes(api: Router, db: Db): void {
   api.use(knowledgeRoutes(db));
   api.use(sopRoutes(db));
   api.use(pipelineRoutes(db));
   api.use(toolRoutes(db));
+  api.use(workspaceRoutes(db));
 }
