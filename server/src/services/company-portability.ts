@@ -2,9 +2,17 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import path from "node:path";
+import os from "node:os";
 import { promisify } from "node:util";
 import type { Db } from "@paperclipai/db";
-import { goals as goalsSchema, pipelineStages, pipelineTemplates } from "@paperclipai/db";
+import {
+  companySops,
+  goals as goalsSchema,
+  knowledgeCollections,
+  pipelineStages,
+  pipelineTemplates,
+  sopAssets,
+} from "@paperclipai/db";
 import { eq } from "drizzle-orm";
 import type {
   CompanyPortabilityAgentManifestEntry,
@@ -20,6 +28,9 @@ import type {
   CompanyPortabilityManifest,
   CompanyPortabilityPipelineManifestEntry,
   CompanyPortabilityPipelineStageEntry,
+  CompanyPortabilitySopAssetEntry,
+  CompanyPortabilitySopManifestEntry,
+  CompanyPortabilityKnowledgeCollectionManifestEntry,
   CompanyPortabilityPreview,
   CompanyPortabilityPreviewAgentPlan,
   CompanyPortabilityPreviewResult,
@@ -115,7 +126,28 @@ const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
   issues: false,
   skills: false,
   pipelines: false,
+  sops: false,
+  knowledgeCollections: false,
 };
+
+function getSopAssetStorageDir(sopId: string): string {
+  const home = process.env.PAPERCLIP_HOME?.trim() || path.join(os.homedir(), ".paperclip");
+  const instance = process.env.PAPERCLIP_INSTANCE_ID?.trim() || "default";
+  return path.join(home, "instances", instance, "data", "sops", sopId, "assets");
+}
+
+const SOP_ASSET_CONTENT_TYPE_MAP: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
+
+function inferSopAssetContentType(filePath: string): string {
+  const ext = path.posix.extname(filePath).toLowerCase();
+  return SOP_ASSET_CONTENT_TYPE_MAP[ext] ?? "application/octet-stream";
+}
 
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
 const execFileAsync = promisify(execFile);
@@ -140,6 +172,10 @@ function classifyPortableFileKind(pathValue: string): CompanyPortabilityExportPr
   if (normalized.startsWith("projects/")) return "project";
   if (normalized.startsWith("tasks/")) return "issue";
   if (normalized.startsWith("pipelines/")) return "pipeline";
+  if (normalized.startsWith("sops/") && normalized.endsWith("/SOP.md")) return "sop";
+  if (normalized.startsWith("sops/") && normalized.endsWith("/sop.json")) return "sop-meta";
+  if (normalized.startsWith("sops/") && normalized.includes("/assets/")) return "sop-asset";
+  if (normalized.startsWith("knowledge/")) return "knowledge-collection";
   return "other";
 }
 
@@ -1191,6 +1227,8 @@ function normalizeInclude(input?: Partial<CompanyPortabilityInclude>): CompanyPo
     issues: input?.issues ?? DEFAULT_INCLUDE.issues,
     skills: input?.skills ?? DEFAULT_INCLUDE.skills,
     pipelines: input?.pipelines ?? DEFAULT_INCLUDE.pipelines,
+    sops: input?.sops ?? DEFAULT_INCLUDE.sops,
+    knowledgeCollections: input?.knowledgeCollections ?? DEFAULT_INCLUDE.knowledgeCollections,
   };
 }
 
@@ -1850,6 +1888,8 @@ function applySelectedFilesToSource(source: ResolvedSource, selectedFiles?: stri
     issues: filtered.manifest.issues.length > 0,
     skills: filtered.manifest.skills.length > 0,
     pipelines: filtered.manifest.pipelines.length > 0,
+    sops: filtered.manifest.sops.length > 0,
+    knowledgeCollections: filtered.manifest.knowledgeCollections.length > 0,
   };
 
   return filtered;
@@ -2296,11 +2336,19 @@ function buildManifestFromPackageFiles(
   const discoveredPipelinePaths = Object.keys(normalizedFiles).filter(
     (entry) => entry.endsWith("/PIPELINE.md") || entry === "PIPELINE.md",
   );
+  const discoveredSopPaths = Object.keys(normalizedFiles).filter(
+    (entry) => entry.startsWith("sops/") && entry.endsWith("/SOP.md"),
+  );
+  const discoveredKnowledgePaths = Object.keys(normalizedFiles).filter(
+    (entry) => entry.startsWith("knowledge/") && entry.endsWith(".json"),
+  );
   const agentPaths = Array.from(new Set([...referencedAgentPaths, ...discoveredAgentPaths])).sort();
   const projectPaths = Array.from(new Set([...referencedProjectPaths, ...discoveredProjectPaths])).sort();
   const taskPaths = Array.from(new Set([...referencedTaskPaths, ...discoveredTaskPaths])).sort();
   const skillPaths = Array.from(new Set([...referencedSkillPaths, ...discoveredSkillPaths])).sort();
   const pipelinePaths = Array.from(new Set([...referencedPipelinePaths, ...discoveredPipelinePaths])).sort();
+  const sopPaths = Array.from(new Set(discoveredSopPaths)).sort();
+  const knowledgePaths = Array.from(new Set(discoveredKnowledgePaths)).sort();
 
   const manifest: CompanyPortabilityManifest = {
     schemaVersion: 4,
@@ -2313,6 +2361,8 @@ function buildManifestFromPackageFiles(
       issues: taskPaths.length > 0,
       skills: skillPaths.length > 0,
       pipelines: pipelinePaths.length > 0,
+      sops: sopPaths.length > 0,
+      knowledgeCollections: knowledgePaths.length > 0,
     },
     company: {
       path: resolvedCompanyPath,
@@ -2331,6 +2381,8 @@ function buildManifestFromPackageFiles(
     projects: [],
     issues: [],
     pipelines: [],
+    sops: [],
+    knowledgeCollections: [],
     envInputs: [],
   };
 
@@ -2621,6 +2673,88 @@ function buildManifestFromPackageFiles(
     if (frontmatter.kind && frontmatter.kind !== "pipeline") {
       warnings.push(`Pipeline markdown ${pipelinePath} does not declare kind: pipeline in frontmatter.`);
     }
+  }
+
+  for (const sopPath of sopPaths) {
+    const markdownRaw = readPortableTextFile(normalizedFiles, sopPath);
+    if (typeof markdownRaw !== "string") {
+      warnings.push(`Referenced SOP file is missing from package: ${sopPath}`);
+      continue;
+    }
+    const sopDir = path.posix.dirname(sopPath);
+    const fallbackSlug = normalizeAgentUrlKey(path.posix.basename(sopDir)) ?? "sop";
+    const metaPath = `${sopDir}/sop.json`;
+    const metaRaw = readPortableTextFile(normalizedFiles, metaPath);
+    let meta: Record<string, unknown> = {};
+    if (typeof metaRaw === "string" && metaRaw.length > 0) {
+      try {
+        const parsed = JSON.parse(metaRaw);
+        if (isPlainRecord(parsed)) meta = parsed;
+      } catch {
+        warnings.push(`SOP metadata file is not valid JSON: ${metaPath}`);
+      }
+    }
+    const assetDir = `${sopDir}/assets/`;
+    const assetPaths = Object.keys(normalizedFiles)
+      .filter((entry) => entry.startsWith(assetDir) && entry !== assetDir)
+      .sort();
+    const assetEntries: CompanyPortabilitySopAssetEntry[] = assetPaths.map((assetPath) => {
+      const base = path.posix.basename(assetPath);
+      const inferredStep = /step[_-]?(\d+)/i.exec(base)?.[1];
+      const stepNumber = inferredStep ? parseInt(inferredStep, 10) : null;
+      return {
+        relativePath: `assets/${base}`,
+        name: base,
+        kind: "screenshot",
+        contentType: inferSopAssetContentType(assetPath),
+        stepNumber,
+      };
+    });
+    manifest.sops.push({
+      slug: asString(meta.slug) ?? fallbackSlug,
+      title: asString(meta.title) ?? asString(meta.name) ?? fallbackSlug,
+      description: asString(meta.description),
+      category: asString(meta.category),
+      sourceType: asString(meta.sourceType) ?? "upload",
+      status: asString(meta.status) ?? "draft",
+      markdown: markdownRaw,
+      skillKey: asString(meta.skillKey),
+      assets: assetEntries,
+      metadata: isPlainRecord(meta.metadata) ? meta.metadata : null,
+    });
+  }
+
+  for (const knowledgePath of knowledgePaths) {
+    const raw = readPortableTextFile(normalizedFiles, knowledgePath);
+    if (typeof raw !== "string") {
+      warnings.push(`Referenced knowledge collection file is missing from package: ${knowledgePath}`);
+      continue;
+    }
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      warnings.push(`Knowledge collection file is not valid JSON: ${knowledgePath}`);
+      continue;
+    }
+    if (!isPlainRecord(parsed)) {
+      warnings.push(`Knowledge collection file has unexpected shape: ${knowledgePath}`);
+      continue;
+    }
+    const fallbackSlug = normalizeAgentUrlKey(
+      path.posix.basename(knowledgePath).replace(/\.json$/i, ""),
+    ) ?? "knowledge";
+    manifest.knowledgeCollections.push({
+      slug: asString(parsed.slug) ?? fallbackSlug,
+      name: asString(parsed.name) ?? fallbackSlug,
+      description: asString(parsed.description),
+      projectSlug: asString(parsed.projectSlug),
+      sourceType: asString(parsed.sourceType) ?? "local_path",
+      sourcePath: asString(parsed.sourcePath) ?? "",
+      sourcePathPortable: asString(parsed.sourcePathPortable),
+      autoDiscover: typeof parsed.autoDiscover === "boolean" ? parsed.autoDiscover : true,
+      status: asString(parsed.status) ?? "active",
+    });
   }
 
   manifest.envInputs = dedupeEnvInputs(manifest.envInputs);
@@ -3371,6 +3505,139 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       }
     }
 
+    // ── SOPs ───────────────────────────────────────────────────────────
+    const sopManifestEntries: CompanyPortabilitySopManifestEntry[] = [];
+    if (include.sops) {
+      const skillIdToKeyForSops = new Map<string, string>();
+      for (const skill of companySkillRows) {
+        skillIdToKeyForSops.set(skill.id, skill.key);
+      }
+
+      const sopRows = await db
+        .select()
+        .from(companySops)
+        .where(eq(companySops.companyId, companyId));
+
+      const usedSopSlugs = new Set<string>();
+      for (const sop of sopRows) {
+        const assetsForSop = await db
+          .select()
+          .from(sopAssets)
+          .where(eq(sopAssets.sopId, sop.id));
+
+        const baseSlug = normalizeAgentUrlKey(sop.name) ?? "sop";
+        const slug = uniqueSlug(baseSlug, usedSopSlugs);
+
+        const skillKey = sop.generatedSkillId
+          ? skillIdToKeyForSops.get(sop.generatedSkillId) ?? null
+          : null;
+
+        const assetEntries: CompanyPortabilitySopAssetEntry[] = [];
+        for (const asset of assetsForSop) {
+          const fileName = path.basename(asset.relativePath);
+          const bundleAssetRelative = `assets/${fileName}`;
+          const contentType = inferSopAssetContentType(fileName);
+          assetEntries.push({
+            relativePath: bundleAssetRelative,
+            name: fileName,
+            kind: asset.kind,
+            contentType,
+            stepNumber: asset.stepNumber ?? null,
+          });
+
+          let sourceFilePath: string | null = null;
+          if (asset.localPath) {
+            sourceFilePath = asset.localPath;
+          } else if (sop.sourcePath) {
+            sourceFilePath = path.join(sop.sourcePath, asset.relativePath);
+          }
+
+          if (!sourceFilePath) {
+            warnings.push(`SOP "${sop.name}" asset "${fileName}" has no resolvable source path.`);
+            continue;
+          }
+
+          try {
+            const buffer = await fs.readFile(sourceFilePath);
+            files[`sops/${slug}/${bundleAssetRelative}`] = bufferToPortableBinaryFile(
+              buffer,
+              contentType,
+            );
+          } catch {
+            warnings.push(`SOP "${sop.name}" asset "${fileName}" file not found on disk at ${sourceFilePath}.`);
+          }
+        }
+
+        const sopEntry: CompanyPortabilitySopManifestEntry = {
+          slug,
+          title: sop.name,
+          description: sop.description,
+          category: sop.category,
+          sourceType: sop.sourceType,
+          status: sop.status,
+          markdown: sop.markdownBody ?? "",
+          skillKey,
+          assets: assetEntries,
+          metadata: sop.metadata ?? null,
+        };
+        sopManifestEntries.push(sopEntry);
+
+        files[`sops/${slug}/SOP.md`] = sop.markdownBody ?? "";
+
+        files[`sops/${slug}/sop.json`] = JSON.stringify(
+          {
+            slug,
+            title: sop.name,
+            description: sop.description,
+            category: sop.category,
+            status: sop.status,
+            sourceType: sop.sourceType,
+            skillKey,
+            metadata: sop.metadata ?? null,
+          },
+          null,
+          2,
+        );
+      }
+    }
+
+    // ── Knowledge Collections ──────────────────────────────────────────
+    const knowledgeManifestEntries: CompanyPortabilityKnowledgeCollectionManifestEntry[] = [];
+    if (include.knowledgeCollections) {
+      const collections = await db
+        .select()
+        .from(knowledgeCollections)
+        .where(eq(knowledgeCollections.companyId, companyId));
+
+      const usedKnowledgeSlugs = new Set<string>();
+      for (const collection of collections) {
+        const baseSlug = normalizeAgentUrlKey(collection.name) ?? "knowledge";
+        const slug = uniqueSlug(baseSlug, usedKnowledgeSlugs);
+        const projectSlug = collection.projectId
+          ? projectSlugById.get(collection.projectId) ?? null
+          : null;
+
+        const portable = collection.sourcePath
+          .replace(/^[A-Za-z]:[/\\]/, "")
+          .replace(/\\/g, "/");
+
+        const entry: CompanyPortabilityKnowledgeCollectionManifestEntry = {
+          slug,
+          name: collection.name,
+          description: collection.description,
+          projectSlug,
+          sourceType: collection.sourceType,
+          sourcePath: collection.sourcePath,
+          sourcePathPortable: portable || null,
+          autoDiscover: collection.autoDiscover,
+          status: collection.status,
+        };
+        knowledgeManifestEntries.push(entry);
+
+        files[`knowledge/${slug}.json`] = JSON.stringify(entry, null, 2);
+      }
+    }
+
     const paperclipExtensionPath = ".paperclip.yaml";
     const paperclipAgents = Object.fromEntries(
       Object.entries(paperclipAgentsOut).filter(([, value]) => isPlainRecord(value) && Object.keys(value).length > 0),
@@ -3415,6 +3682,8 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       issues: resolved.manifest.issues.length > 0,
       skills: resolved.manifest.skills.length > 0,
       pipelines: resolved.manifest.pipelines.length > 0,
+      sops: resolved.manifest.sops.length > 0,
+      knowledgeCollections: resolved.manifest.knowledgeCollections.length > 0,
     };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
@@ -3450,6 +3719,8 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       issues: resolved.manifest.issues.length > 0,
       skills: resolved.manifest.skills.length > 0,
       pipelines: resolved.manifest.pipelines.length > 0,
+      sops: resolved.manifest.sops.length > 0,
+      knowledgeCollections: resolved.manifest.knowledgeCollections.length > 0,
     };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
@@ -3514,6 +3785,8 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       issues: requestedInclude.issues && manifest.issues.length > 0,
       skills: requestedInclude.skills && manifest.skills.length > 0,
       pipelines: requestedInclude.pipelines && manifest.pipelines.length > 0,
+      sops: requestedInclude.sops && manifest.sops.length > 0,
+      knowledgeCollections: requestedInclude.knowledgeCollections && manifest.knowledgeCollections.length > 0,
     };
     const collisionStrategy = input.collisionStrategy ?? DEFAULT_COLLISION_STRATEGY;
     if (mode === "agent_safe" && collisionStrategy === "replace") {
@@ -4547,6 +4820,210 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
             stageConfig: stage.stageConfig ?? undefined,
           });
         }
+      }
+    }
+
+    // ── SOPs ───────────────────────────────────────────────────────────
+    if (include.sops && sourceManifest.sops.length > 0) {
+      const sopSkillKeyToId = new Map<string, string>();
+      const allExistingSkillsForSops = await companySkills.listFull(targetCompany.id);
+      for (const skill of allExistingSkillsForSops) {
+        sopSkillKeyToId.set(skill.key, skill.id);
+      }
+
+      const existingSopRows = await db
+        .select()
+        .from(companySops)
+        .where(eq(companySops.companyId, targetCompany.id));
+      const existingSopByName = new Map<string, typeof existingSopRows[number]>();
+      for (const existing of existingSopRows) {
+        existingSopByName.set(existing.name.toLowerCase(), existing);
+      }
+      const existingSopNames = new Set(existingSopRows.map((s) => s.name));
+
+      for (const manifestSop of sourceManifest.sops) {
+        const existing = existingSopByName.get(manifestSop.title.toLowerCase()) ?? null;
+        let action: "create" | "update" | "skip" = "create";
+        let existingId: string | null = null;
+        let effectiveName = manifestSop.title;
+
+        if (existing) {
+          if (plan.collisionStrategy === "skip") {
+            action = "skip";
+            existingId = existing.id;
+          } else if (plan.collisionStrategy === "replace") {
+            action = "update";
+            existingId = existing.id;
+          } else {
+            const renamedSet = new Set(existingSopNames);
+            let idx = 2;
+            let candidate = `${manifestSop.title} ${idx}`;
+            while (renamedSet.has(candidate)) {
+              idx += 1;
+              candidate = `${manifestSop.title} ${idx}`;
+            }
+            effectiveName = candidate;
+            existingSopNames.add(candidate);
+            action = "create";
+          }
+        }
+
+        if (action === "skip") {
+          warnings.push(`Skipped SOP "${manifestSop.title}"; existing SOP was kept.`);
+          continue;
+        }
+
+        const generatedSkillId = manifestSop.skillKey
+          ? sopSkillKeyToId.get(manifestSop.skillKey) ?? null
+          : null;
+
+        let sopId: string;
+        if (action === "update" && existingId) {
+          sopId = existingId;
+          await db
+            .update(companySops)
+            .set({
+              name: effectiveName,
+              description: manifestSop.description,
+              category: manifestSop.category,
+              sourceType: manifestSop.sourceType,
+              status: manifestSop.status,
+              markdownBody: manifestSop.markdown,
+              generatedSkillId,
+              hasScreenshots: manifestSop.assets.length > 0,
+              screenshotCount: manifestSop.assets.length,
+              metadata: manifestSop.metadata ?? undefined,
+              updatedAt: new Date(),
+            })
+            .where(eq(companySops.id, sopId));
+          await db.delete(sopAssets).where(eq(sopAssets.sopId, sopId));
+        } else {
+          const [created] = await db
+            .insert(companySops)
+            .values({
+              companyId: targetCompany.id,
+              name: effectiveName,
+              description: manifestSop.description,
+              category: manifestSop.category,
+              sourceType: manifestSop.sourceType,
+              status: manifestSop.status,
+              markdownBody: manifestSop.markdown,
+              generatedSkillId,
+              hasScreenshots: manifestSop.assets.length > 0,
+              screenshotCount: manifestSop.assets.length,
+              metadata: manifestSop.metadata ?? undefined,
+            })
+            .returning();
+          if (!created) {
+            warnings.push(`Failed to create SOP "${manifestSop.title}".`);
+            continue;
+          }
+          sopId = created.id;
+        }
+
+        // Write assets to instance storage dir, then insert DB rows.
+        for (const asset of manifestSop.assets) {
+          const fileKey = `sops/${manifestSop.slug}/${asset.relativePath}`;
+          const fileEntry = plan.source.files[fileKey];
+          if (!fileEntry) {
+            warnings.push(`SOP "${effectiveName}" asset "${asset.name}" missing from bundle at ${fileKey}.`);
+            continue;
+          }
+          const buffer = portableFileToBuffer(fileEntry, fileKey);
+          const storageDir = getSopAssetStorageDir(sopId);
+          await fs.mkdir(storageDir, { recursive: true });
+          const localPath = path.join(storageDir, path.basename(asset.relativePath));
+          await fs.writeFile(localPath, buffer);
+
+          await db.insert(sopAssets).values({
+            sopId,
+            companyId: targetCompany.id,
+            localPath: localPath.replace(/\\/g, "/"),
+            relativePath: asset.relativePath,
+            kind: asset.kind,
+            stepNumber: asset.stepNumber,
+          });
+        }
+      }
+    }
+
+    // ── Knowledge Collections ──────────────────────────────────────────
+    if (include.knowledgeCollections && sourceManifest.knowledgeCollections.length > 0) {
+      const projectSlugToIdForKnowledge = new Map<string, string>();
+      for (const [slug, id] of importedSlugToProjectId.entries()) {
+        projectSlugToIdForKnowledge.set(slug, id);
+      }
+      for (const [slug, id] of existingProjectSlugToId.entries()) {
+        if (!projectSlugToIdForKnowledge.has(slug)) projectSlugToIdForKnowledge.set(slug, id);
+      }
+
+      const existingCollections = await db
+        .select()
+        .from(knowledgeCollections)
+        .where(eq(knowledgeCollections.companyId, targetCompany.id));
+      const existingCollectionsByName = new Map<string, typeof existingCollections[number]>();
+      for (const existing of existingCollections) {
+        existingCollectionsByName.set(existing.name.toLowerCase(), existing);
+      }
+      const existingCollectionNames = new Set(existingCollections.map((c) => c.name));
+
+      for (const manifestCol of sourceManifest.knowledgeCollections) {
+        const resolvedPath = manifestCol.sourcePath;
+        let pathWarning: string | null = null;
+        if (!resolvedPath) {
+          pathWarning = "Source path is empty";
+        } else {
+          try {
+            const st = await fs.stat(resolvedPath);
+            if (!st.isDirectory()) {
+              pathWarning = `Path is not a directory: ${resolvedPath}`;
+            }
+          } catch {
+            pathWarning = `Source path does not exist on this machine: ${resolvedPath}`;
+          }
+        }
+
+        if (pathWarning) {
+          warnings.push(
+            `Knowledge collection "${manifestCol.name}": ${pathWarning}. Created in "unreachable" status; run rescan with a valid path to activate.`,
+          );
+        }
+
+        let colName = manifestCol.name;
+        const existing = existingCollectionsByName.get(colName.toLowerCase());
+        if (existing) {
+          if (plan.collisionStrategy === "skip") {
+            warnings.push(`Skipped knowledge collection "${manifestCol.name}"; existing collection was kept.`);
+            continue;
+          }
+          if (plan.collisionStrategy === "rename") {
+            const renamedSet = new Set(existingCollectionNames);
+            let idx = 2;
+            let candidate = `${colName} ${idx}`;
+            while (renamedSet.has(candidate)) {
+              idx += 1;
+              candidate = `${colName} ${idx}`;
+            }
+            colName = candidate;
+            existingCollectionNames.add(candidate);
+          }
+          // 'replace' falls through — for knowledge we create new (user can rescan).
+        }
+
+        const projectId = manifestCol.projectSlug
+          ? projectSlugToIdForKnowledge.get(manifestCol.projectSlug) ?? null
+          : null;
+
+        await db.insert(knowledgeCollections).values({
+          companyId: targetCompany.id,
+          projectId,
+          name: colName,
+          description: manifestCol.description,
+          sourceType: manifestCol.sourceType,
+          sourcePath: resolvedPath,
+          autoDiscover: manifestCol.autoDiscover,
+          status: pathWarning ? "unreachable" : manifestCol.status,
+        });
       }
     }
 

@@ -64,6 +64,8 @@ const DEFAULT_EXPORT_INCLUDE: CompanyPortabilityInclude = {
   issues: false,
   skills: false,
   pipelines: false,
+  sops: false,
+  knowledgeCollections: false,
 };
 
 const DEFAULT_IMPORT_INCLUDE: CompanyPortabilityInclude = {
@@ -73,6 +75,8 @@ const DEFAULT_IMPORT_INCLUDE: CompanyPortabilityInclude = {
   issues: true,
   skills: true,
   pipelines: true,
+  sops: true,
+  knowledgeCollections: true,
 };
 
 const IMPORT_INCLUDE_OPTIONS: Array<{
@@ -86,6 +90,8 @@ const IMPORT_INCLUDE_OPTIONS: Array<{
   { value: "agents", label: "Agents", hint: "agent records and org structure" },
   { value: "skills", label: "Skills", hint: "company skill packages and references" },
   { value: "pipelines", label: "Pipelines", hint: "multi-stage pipeline templates" },
+  { value: "sops", label: "SOPs", hint: "standard operating procedures with screenshot assets" },
+  { value: "knowledgeCollections", label: "Knowledge", hint: "knowledge collection metadata (paths re-mapped on import)" },
 ];
 
 const IMPORT_PREVIEW_SAMPLE_LIMIT = 6;
@@ -148,9 +154,22 @@ function parseInclude(
     issues: values.includes("issues") || values.includes("tasks"),
     skills: values.includes("skills"),
     pipelines: values.includes("pipelines"),
+    sops: values.includes("sops"),
+    knowledgeCollections: values.includes("knowledge") || values.includes("knowledgecollections"),
   };
-  if (!include.company && !include.agents && !include.projects && !include.issues && !include.skills && !include.pipelines) {
-    throw new Error("Invalid --include value. Use one or more of: company,agents,projects,issues,tasks,skills,pipelines");
+  if (
+    !include.company
+    && !include.agents
+    && !include.projects
+    && !include.issues
+    && !include.skills
+    && !include.pipelines
+    && !include.sops
+    && !include.knowledgeCollections
+  ) {
+    throw new Error(
+      "Invalid --include value. Use one or more of: company,agents,projects,issues,tasks,skills,pipelines,sops,knowledge",
+    );
   }
   return include;
 }
@@ -1103,7 +1122,7 @@ export function registerCompanyCommands(program: Command): void {
       .description("Export a company into a portable markdown package")
       .argument("<companyId>", "Company ID")
       .requiredOption("--out <path>", "Output directory")
-      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills,pipelines", "company,agents")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills,pipelines,sops,knowledge", "company,agents")
       .option("--skills <values>", "Comma-separated skill slugs/keys to export")
       .option("--projects <values>", "Comma-separated project shortnames/ids to export")
       .option("--issues <values>", "Comma-separated issue identifiers/ids to export")
@@ -1156,7 +1175,7 @@ export function registerCompanyCommands(program: Command): void {
       .command("import")
       .description("Import a portable markdown company package from local path, URL, or GitHub")
       .argument("<fromPathOrUrl>", "Source path or URL")
-      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills,pipelines")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills,pipelines,sops,knowledge")
       .option("--target <mode>", "Target mode: new | existing")
       .option("-C, --company-id <id>", "Existing target company ID")
       .option("--new-company-name <name>", "Name override for --target new")

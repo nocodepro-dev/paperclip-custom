@@ -335,7 +335,7 @@ async function main() {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       source: null,
-      includes: { company: true, agents: true, projects: false, issues: false, skills: true, pipelines: false },
+      includes: { company: true, agents: true, projects: false, issues: false, skills: true, pipelines: false, sops: false, knowledgeCollections: false },
       company: null,
       sidebar: null,
       agents: pkg.agents,
@@ -343,6 +343,8 @@ async function main() {
       projects: [],
       issues: [],
       pipelines: [],
+      sops: [],
+      knowledgeCollections: [],
       envInputs: [],
     };
 

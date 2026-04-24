@@ -8,6 +8,8 @@ export const portabilityIncludeSchema = z
     issues: z.boolean().optional(),
     skills: z.boolean().optional(),
     pipelines: z.boolean().optional(),
+    sops: z.boolean().optional(),
+    knowledgeCollections: z.boolean().optional(),
   })
   .partial();
 
@@ -175,6 +177,39 @@ export const portabilityPipelineManifestEntrySchema = z.object({
   stages: z.array(portabilityPipelineStageEntrySchema).default([]),
 });
 
+export const portabilitySopAssetEntrySchema = z.object({
+  relativePath: z.string().min(1),
+  name: z.string().min(1),
+  kind: z.string().min(1),
+  contentType: z.string().min(1),
+  stepNumber: z.number().int().nullable(),
+});
+
+export const portabilitySopManifestEntrySchema = z.object({
+  slug: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().nullable(),
+  category: z.string().nullable(),
+  sourceType: z.string().min(1),
+  status: z.string().min(1),
+  markdown: z.string(),
+  skillKey: z.string().nullable(),
+  assets: z.array(portabilitySopAssetEntrySchema).default([]),
+  metadata: z.record(z.unknown()).nullable(),
+});
+
+export const portabilityKnowledgeCollectionManifestEntrySchema = z.object({
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().nullable(),
+  projectSlug: z.string().nullable(),
+  sourceType: z.string().min(1),
+  sourcePath: z.string().min(1),
+  sourcePathPortable: z.string().nullable(),
+  autoDiscover: z.boolean(),
+  status: z.string().min(1),
+});
+
 export const portabilityManifestSchema = z.object({
   schemaVersion: z.number().int().positive(),
   generatedAt: z.string().datetime(),
@@ -191,6 +226,8 @@ export const portabilityManifestSchema = z.object({
     issues: z.boolean(),
     skills: z.boolean(),
     pipelines: z.boolean(),
+    sops: z.boolean(),
+    knowledgeCollections: z.boolean(),
   }),
   company: portabilityCompanyManifestEntrySchema.nullable(),
   sidebar: portabilitySidebarOrderSchema.nullable(),
@@ -199,6 +236,8 @@ export const portabilityManifestSchema = z.object({
   projects: z.array(portabilityProjectManifestEntrySchema).default([]),
   issues: z.array(portabilityIssueManifestEntrySchema).default([]),
   pipelines: z.array(portabilityPipelineManifestEntrySchema).default([]),
+  sops: z.array(portabilitySopManifestEntrySchema).default([]),
+  knowledgeCollections: z.array(portabilityKnowledgeCollectionManifestEntrySchema).default([]),
   envInputs: z.array(portabilityEnvInputSchema).default([]),
 });
 

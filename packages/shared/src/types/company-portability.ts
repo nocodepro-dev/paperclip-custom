@@ -5,6 +5,8 @@ export interface CompanyPortabilityInclude {
   issues: boolean;
   skills: boolean;
   pipelines: boolean;
+  sops: boolean;
+  knowledgeCollections: boolean;
 }
 
 export interface CompanyPortabilityEnvInput {
@@ -156,6 +158,8 @@ export interface CompanyPortabilityManifest {
   projects: CompanyPortabilityProjectManifestEntry[];
   issues: CompanyPortabilityIssueManifestEntry[];
   pipelines: CompanyPortabilityPipelineManifestEntry[];
+  sops: CompanyPortabilitySopManifestEntry[];
+  knowledgeCollections: CompanyPortabilityKnowledgeCollectionManifestEntry[];
   envInputs: CompanyPortabilityEnvInput[];
 }
 
@@ -169,7 +173,20 @@ export interface CompanyPortabilityExportResult {
 
 export interface CompanyPortabilityExportPreviewFile {
   path: string;
-  kind: "company" | "agent" | "skill" | "project" | "issue" | "pipeline" | "extension" | "readme" | "other";
+  kind:
+    | "company"
+    | "agent"
+    | "skill"
+    | "project"
+    | "issue"
+    | "pipeline"
+    | "sop"
+    | "sop-asset"
+    | "sop-meta"
+    | "knowledge-collection"
+    | "extension"
+    | "readme"
+    | "other";
 }
 
 export interface CompanyPortabilityExportPreviewResult {
@@ -334,4 +351,37 @@ export interface CompanyPortabilityPipelineManifestEntry {
   status: string;
   metadata: Record<string, unknown> | null;
   stages: CompanyPortabilityPipelineStageEntry[];
+}
+
+export interface CompanyPortabilitySopAssetEntry {
+  relativePath: string;
+  name: string;
+  kind: string;
+  contentType: string;
+  stepNumber: number | null;
+}
+
+export interface CompanyPortabilitySopManifestEntry {
+  slug: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  sourceType: string;
+  status: string;
+  markdown: string;
+  skillKey: string | null;
+  assets: CompanyPortabilitySopAssetEntry[];
+  metadata: Record<string, unknown> | null;
+}
+
+export interface CompanyPortabilityKnowledgeCollectionManifestEntry {
+  slug: string;
+  name: string;
+  description: string | null;
+  projectSlug: string | null;
+  sourceType: string;
+  sourcePath: string;
+  sourcePathPortable: string | null;
+  autoDiscover: boolean;
+  status: string;
 }
