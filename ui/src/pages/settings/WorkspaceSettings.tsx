@@ -51,9 +51,14 @@ export function WorkspaceSettings() {
         pushToast({ title: "Import failed", tone: "error" });
         return;
       }
+      const companyWord = result.imported.companies === 1 ? "company" : "companies";
+      const methodSuffix =
+        result.method === "archive"
+          ? " (via GitHub ZIP — install git to enable future backup/sync)"
+          : "";
       pushToast({
         title: "Import complete",
-        body: `Imported ${result.imported.companies} ${result.imported.companies === 1 ? "company" : "companies"} from GitHub`,
+        body: `Imported ${result.imported.companies} ${companyWord} from GitHub${methodSuffix}`,
         tone: "success",
       });
       resetForm();
@@ -88,7 +93,7 @@ export function WorkspaceSettings() {
   const formHelper =
     mode === "setup"
       ? "Start a fresh backup to a new (empty) Git repo."
-      : "Clone an existing Paperclip workspace from GitHub. Existing data on this instance stays; anything with the same name gets a numbered suffix (e.g. 'My Company 2').";
+      : "Clone an existing Paperclip workspace from GitHub. Public repos work without any setup (make the repo temporarily public if needed, then private again after import). Existing data on this instance stays; anything with the same name gets a numbered suffix (e.g. 'My Company 2').";
   const primaryLabel = mode === "setup" ? "Link" : "Import";
   const primaryPending = mode === "setup" ? initMutation.isPending : importMutation.isPending;
   const primaryDisabled = !remoteUrl || primaryPending;
@@ -161,8 +166,18 @@ export function WorkspaceSettings() {
             />
           </label>
           <p className="text-xs text-muted-foreground">
-            Paperclip uses your machine's existing git credentials (SSH key or credential
-            manager). Make sure <code>git push</code> / <code>git clone</code> already works for this repo from your terminal.
+            {mode === "setup" ? (
+              <>
+                Paperclip uses your machine's existing git credentials (SSH key or credential
+                manager). Make sure <code>git push</code> already works for this repo from your terminal.
+              </>
+            ) : (
+              <>
+                If git is installed on this machine, Paperclip will clone normally. If not, it will
+                download the repo as a ZIP (public repos only — make the repo temporarily public on
+                GitHub if needed, then private again after import).
+              </>
+            )}
           </p>
           <div className="flex gap-2">
             <Button onClick={onPrimaryClick} disabled={primaryDisabled}>

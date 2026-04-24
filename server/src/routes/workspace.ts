@@ -136,9 +136,9 @@ export function workspaceRoutes(db: Db): Router {
     }
     try {
       const workspaceDir = resolveWorkspaceDir();
-      await cloneRepo(remoteUrl, workspaceDir, branch);
+      const method = await cloneRepo(remoteUrl, workspaceDir, branch);
       const result = await svc.importWorkspace(workspaceDir, { collisionStrategy: "rename" });
-      res.json({ ok: true, imported: result });
+      res.json({ ok: true, imported: result, method });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : "Clone failed" });
     }

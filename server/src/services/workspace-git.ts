@@ -2,8 +2,20 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { downloadGitHubArchive } from "./workspace-github-archive.js";
 
 const execFileAsync = promisify(execFile);
+
+export async function isGitInstalled(): Promise<boolean> {
+  try {
+    await execFileAsync("git", ["--version"], { timeout: 5_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export type CloneMethod = "git" | "archive";
 
 export interface GitResult {
   stdout: string;
@@ -38,10 +50,23 @@ export async function initRepo(workspaceDir: string, remoteUrl: string, branch =
   await gitRun(workspaceDir, ["remote", "add", "origin", remoteUrl]);
 }
 
-export async function cloneRepo(remoteUrl: string, targetDir: string, branch = "main"): Promise<void> {
+export async function cloneRepo(
+  remoteUrl: string,
+  targetDir: string,
+  branch = "main",
+): Promise<CloneMethod> {
   const parent = path.dirname(targetDir);
   await mkdir(parent, { recursive: true });
-  await gitRun(parent, ["clone", "-b", branch, remoteUrl, path.basename(targetDir)], 600_000);
+
+  if (await isGitInstalled()) {
+    await gitRun(parent, ["clone", "-b", branch, remoteUrl, path.basename(targetDir)], 600_000);
+    return "git";
+  }
+
+  // Fallback: download the public GitHub archive ZIP — no git binary required,
+  // but the repo must be public (or temporarily made public).
+  await downloadGitHubArchive(remoteUrl, targetDir, branch);
+  return "archive";
 }
 
 export async function commitAll(workspaceDir: string, message: string): Promise<{ committed: boolean; sha: string | null }> {

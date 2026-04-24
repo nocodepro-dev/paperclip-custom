@@ -35,6 +35,7 @@ export interface WorkspaceImportStats {
 export interface WorkspaceCloneOrPullResult {
   ok: boolean;
   imported: WorkspaceImportStats;
+  method?: "git" | "archive";
 }
 
 export const workspaceApi = {
