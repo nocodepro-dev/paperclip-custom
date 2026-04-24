@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CloudUpload, GitBranch, RefreshCw } from "lucide-react";
+import { CloudDownload, CloudUpload, GitBranch, RefreshCw } from "lucide-react";
 import { workspaceApi } from "@/api/workspace";
 import { Button } from "@/components/ui/button";
 import { useToast } from "../../context/ToastContext";
 import { useBreadcrumbs } from "../../context/BreadcrumbContext";
 import { PageSkeleton } from "../../components/PageSkeleton";
 
+type Mode = "idle" | "setup" | "import";
+
 export function WorkspaceSettings() {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
   const { setBreadcrumbs } = useBreadcrumbs();
-  const [showSetup, setShowSetup] = useState(false);
+  const [mode, setMode] = useState<Mode>("idle");
   const [remoteUrl, setRemoteUrl] = useState("");
 
   useEffect(() => {
@@ -27,15 +29,38 @@ export function WorkspaceSettings() {
     refetchInterval: 30_000,
   });
 
+  const resetForm = () => {
+    setMode("idle");
+    setRemoteUrl("");
+  };
+
   const initMutation = useMutation({
     mutationFn: () => workspaceApi.init(remoteUrl),
     onSuccess: () => {
       pushToast({ title: "Workspace linked", tone: "success" });
-      setShowSetup(false);
-      setRemoteUrl("");
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ["workspace", "status"] });
     },
     onError: (err) => pushToast({ title: "Setup failed", body: String(err), tone: "error" }),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: () => workspaceApi.clone(remoteUrl),
+    onSuccess: (result) => {
+      if (!result) {
+        pushToast({ title: "Import failed", tone: "error" });
+        return;
+      }
+      pushToast({
+        title: "Import complete",
+        body: `Imported ${result.imported.companies} ${result.imported.companies === 1 ? "company" : "companies"} from GitHub`,
+        tone: "success",
+      });
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ["workspace", "status"] });
+      queryClient.invalidateQueries(); // refresh everything — companies, pipelines, SOPs, etc. all changed
+    },
+    onError: (err) => pushToast({ title: "Import failed", body: String(err), tone: "error" }),
   });
 
   const syncMutation = useMutation({
@@ -59,6 +84,19 @@ export function WorkspaceSettings() {
 
   if (isLoading) return <PageSkeleton />;
 
+  const formTitle = mode === "setup" ? "Link to Git repository" : "Import workspace from GitHub";
+  const formHelper =
+    mode === "setup"
+      ? "Start a fresh backup to a new (empty) Git repo."
+      : "Clone an existing Paperclip workspace from GitHub. Existing data on this instance stays; anything with the same name gets a numbered suffix (e.g. 'My Company 2').";
+  const primaryLabel = mode === "setup" ? "Link" : "Import";
+  const primaryPending = mode === "setup" ? initMutation.isPending : importMutation.isPending;
+  const primaryDisabled = !remoteUrl || primaryPending;
+  const onPrimaryClick = () => {
+    if (mode === "setup") initMutation.mutate();
+    else if (mode === "import") importMutation.mutate();
+  };
+
   return (
     <div className="max-w-3xl space-y-4">
       <div className="space-y-2">
@@ -67,24 +105,50 @@ export function WorkspaceSettings() {
           <h1 className="text-lg font-semibold">Workspace</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Back up your entire Paperclip instance to GitHub. All companies, pipelines, SOPs,
-          and knowledge collections are exported to a Git repository you control.
+          Back up your entire Paperclip instance to GitHub, or import a workspace from a GitHub
+          repo. All companies, pipelines, SOPs, and knowledge collections are covered.
         </p>
       </div>
 
-      {!status?.hasRemote && !showSetup && (
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-2">Workspace not linked</h3>
-          <p className="text-sm text-muted-foreground mb-3">
-            Link this Paperclip instance to a Git repository to enable one-click backups.
+      {!status?.hasRemote && mode === "idle" && (
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <h3 className="text-sm font-semibold">Workspace not linked</h3>
+          <p className="text-sm text-muted-foreground">
+            Choose one:
           </p>
-          <Button onClick={() => setShowSetup(true)}>Setup Workspace Backup</Button>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <button
+              onClick={() => setMode("setup")}
+              className="text-left rounded-lg border border-border hover:border-foreground/30 hover:bg-accent/30 transition-colors p-4 space-y-1"
+            >
+              <div className="flex items-center gap-2">
+                <CloudUpload className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Setup new backup</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Start fresh — push the current Paperclip state to a new (empty) Git repo.
+              </p>
+            </button>
+            <button
+              onClick={() => setMode("import")}
+              className="text-left rounded-lg border border-border hover:border-foreground/30 hover:bg-accent/30 transition-colors p-4 space-y-1"
+            >
+              <div className="flex items-center gap-2">
+                <CloudDownload className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Import from GitHub</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Clone an existing Paperclip workspace repo and restore it into this instance.
+              </p>
+            </button>
+          </div>
         </div>
       )}
 
-      {showSetup && (
+      {(mode === "setup" || mode === "import") && (
         <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-          <h3 className="text-sm font-semibold">Link to Git repository</h3>
+          <h3 className="text-sm font-semibold">{formTitle}</h3>
+          <p className="text-xs text-muted-foreground">{formHelper}</p>
           <label className="block text-sm">
             <span className="text-muted-foreground">Git remote URL</span>
             <input
@@ -93,22 +157,18 @@ export function WorkspaceSettings() {
               onChange={(e) => setRemoteUrl(e.target.value)}
               placeholder="https://github.com/nocodepro-dev/paperclip-workspace.git"
               className="w-full mt-1 px-3 py-1.5 text-sm bg-transparent border border-border rounded-md placeholder:text-muted-foreground focus:outline-none focus-visible:ring-ring focus-visible:ring-[3px]"
+              autoFocus
             />
           </label>
+          <p className="text-xs text-muted-foreground">
+            Paperclip uses your machine's existing git credentials (SSH key or credential
+            manager). Make sure <code>git push</code> / <code>git clone</code> already works for this repo from your terminal.
+          </p>
           <div className="flex gap-2">
-            <Button
-              onClick={() => initMutation.mutate()}
-              disabled={!remoteUrl || initMutation.isPending}
-            >
-              {initMutation.isPending ? "Linking..." : "Link"}
+            <Button onClick={onPrimaryClick} disabled={primaryDisabled}>
+              {primaryPending ? `${primaryLabel === "Import" ? "Importing" : "Linking"}...` : primaryLabel}
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowSetup(false);
-                setRemoteUrl("");
-              }}
-            >
+            <Button variant="ghost" onClick={resetForm}>
               Cancel
             </Button>
           </div>
