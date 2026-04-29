@@ -45,6 +45,8 @@ export const workspaceApi = {
       "/workspace/init",
       { remoteUrl, branch },
     ),
+  updateRemote: (remoteUrl: string) =>
+    api.post<{ ok: boolean; remoteUrl: string }>("/workspace/remote", { remoteUrl }),
   sync: () => api.post<WorkspaceSyncResult>("/workspace/sync", {}),
   pull: () => api.post<WorkspaceCloneOrPullResult>("/workspace/pull", {}),
   clone: (remoteUrl: string, branch = "main") =>

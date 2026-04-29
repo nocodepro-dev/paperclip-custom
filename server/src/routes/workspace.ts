@@ -13,6 +13,7 @@ import {
   cloneRepo,
   isGitRepo,
   ensureWorkspaceDir,
+  setRemoteUrl,
 } from "../services/workspace-git.js";
 import { assertInstanceAdmin } from "./authz.js";
 
@@ -79,6 +80,27 @@ export function workspaceRoutes(db: Db): Router {
       res.json({ ok: true, workspaceDir, remoteUrl, branch });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : "Init failed" });
+    }
+  });
+
+  // POST /api/workspace/remote — update the remote URL of an already-linked workspace
+  router.post("/workspace/remote", async (req, res) => {
+    assertInstanceAdmin(req);
+    const { remoteUrl } = req.body ?? {};
+    if (!remoteUrl || typeof remoteUrl !== "string" || !remoteUrl.trim()) {
+      res.status(400).json({ error: "remoteUrl is required" });
+      return;
+    }
+    try {
+      const workspaceDir = resolveWorkspaceDir();
+      if (!(await isGitRepo(workspaceDir))) {
+        res.status(404).json({ error: "Workspace is not initialized — run setup first" });
+        return;
+      }
+      await setRemoteUrl(workspaceDir, remoteUrl.trim());
+      res.json({ ok: true, remoteUrl: remoteUrl.trim() });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : "Update remote failed" });
     }
   });
 

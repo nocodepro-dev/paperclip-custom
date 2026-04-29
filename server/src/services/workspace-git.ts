@@ -50,6 +50,17 @@ export async function initRepo(workspaceDir: string, remoteUrl: string, branch =
   await gitRun(workspaceDir, ["remote", "add", "origin", remoteUrl]);
 }
 
+export async function setRemoteUrl(workspaceDir: string, remoteUrl: string): Promise<void> {
+  // Update origin if it already exists; otherwise add it (defensive — origin
+  // should exist whenever the workspace dir is a git repo, but a manual
+  // `git remote remove origin` would leave it without one).
+  try {
+    await gitRun(workspaceDir, ["remote", "set-url", "origin", remoteUrl]);
+  } catch {
+    await gitRun(workspaceDir, ["remote", "add", "origin", remoteUrl]);
+  }
+}
+
 export async function cloneRepo(
   remoteUrl: string,
   targetDir: string,

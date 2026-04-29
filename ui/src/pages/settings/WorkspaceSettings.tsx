@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CloudDownload, CloudUpload, GitBranch, RefreshCw } from "lucide-react";
+import { Check, CloudDownload, CloudUpload, GitBranch, Pencil, RefreshCw, X } from "lucide-react";
 import { workspaceApi } from "@/api/workspace";
 import { Button } from "@/components/ui/button";
 import { useToast } from "../../context/ToastContext";
@@ -15,6 +15,7 @@ export function WorkspaceSettings() {
   const { setBreadcrumbs } = useBreadcrumbs();
   const [mode, setMode] = useState<Mode>("idle");
   const [remoteUrl, setRemoteUrl] = useState("");
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setBreadcrumbs([
@@ -66,6 +67,16 @@ export function WorkspaceSettings() {
       queryClient.invalidateQueries(); // refresh everything — companies, pipelines, SOPs, etc. all changed
     },
     onError: (err) => pushToast({ title: "Import failed", body: String(err), tone: "error" }),
+  });
+
+  const updateRemoteMutation = useMutation({
+    mutationFn: (newUrl: string) => workspaceApi.updateRemote(newUrl),
+    onSuccess: () => {
+      pushToast({ title: "Remote URL updated", tone: "success" });
+      setEditingUrl(null);
+      queryClient.invalidateQueries({ queryKey: ["workspace", "status"] });
+    },
+    onError: (err) => pushToast({ title: "Update failed", body: String(err), tone: "error" }),
   });
 
   const syncMutation = useMutation({
@@ -192,10 +203,55 @@ export function WorkspaceSettings() {
 
       {status?.hasRemote && (
         <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-muted-foreground" />
-            <span className="font-mono text-sm truncate">{status.remoteUrl}</span>
-          </div>
+          {editingUrl === null ? (
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="font-mono text-sm truncate flex-1">{status.remoteUrl}</span>
+              <button
+                type="button"
+                onClick={() => setEditingUrl(status.remoteUrl ?? "")}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-accent/30"
+                title="Edit URL"
+                aria-label="Edit URL"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="block text-sm">
+                <span className="text-muted-foreground">Edit Git remote URL</span>
+                <input
+                  type="text"
+                  value={editingUrl}
+                  onChange={(e) => setEditingUrl(e.target.value)}
+                  className="w-full mt-1 px-3 py-1.5 text-sm bg-transparent border border-border rounded-md placeholder:text-muted-foreground focus:outline-none focus-visible:ring-ring focus-visible:ring-[3px] font-mono"
+                  autoFocus
+                />
+              </label>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => updateRemoteMutation.mutate(editingUrl.trim())}
+                  disabled={!editingUrl.trim() || updateRemoteMutation.isPending}
+                  className="gap-1.5"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {updateRemoteMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setEditingUrl(null)}
+                  disabled={updateRemoteMutation.isPending}
+                  className="gap-1.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
 
           {status.lastCommit ? (
             <div className="text-sm text-muted-foreground">
